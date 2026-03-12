@@ -34,14 +34,40 @@ class FakeDispatcher:
     def __init__(self, summary_factory) -> None:
         self.summary_factory = summary_factory
         self.calls: list[tuple[TimeWindow, list[ClusterConfig]]] = []
+        self.progress_callbacks = []
 
     async def run_window(
         self,
         window: TimeWindow,
         clusters: list[ClusterConfig],
+        progress_callback=None,
     ) -> DispatchSummary:
         self.calls.append((window, list(clusters)))
+        self.progress_callbacks.append(progress_callback)
         return self.summary_factory(window, clusters)
+
+    def collector_count(self) -> int:
+        return 1
+
+
+class FakeStatusService:
+    def __init__(self) -> None:
+        self.begin_calls = []
+        self.advance_calls = []
+        self.complete_calls = []
+        self.fail_calls = []
+
+    def begin_window(self, **kwargs) -> None:
+        self.begin_calls.append(kwargs)
+
+    def advance_window(self, **kwargs) -> None:
+        self.advance_calls.append(kwargs)
+
+    def complete_window(self, **kwargs) -> None:
+        self.complete_calls.append(kwargs)
+
+    def fail_window(self, **kwargs) -> None:
+        self.fail_calls.append(kwargs)
 
 
 def _cluster_loader() -> list[ClusterConfig]:
@@ -104,7 +130,13 @@ def _summary_factory(window: TimeWindow, clusters: list[ClusterConfig]) -> Dispa
 async def test_collection_service_loads_filters_and_persists(sample_window) -> None:
     repository = FakeRepository()
     dispatcher = FakeDispatcher(_summary_factory)
-    service = CollectionService(_cluster_loader, dispatcher, repository)
+    status_service = FakeStatusService()
+    service = CollectionService(
+        _cluster_loader,
+        dispatcher,
+        repository,
+        status_service=status_service,
+    )
 
     execution = await service.collect_window(
         sample_window,
@@ -126,6 +158,9 @@ async def test_collection_service_loads_filters_and_persists(sample_window) -> N
     assert run_record.cluster_name == "cluster-b"
     assert run_record.collector_name == "cpu"
     assert run_record.retry_count == 0
+    assert status_service.begin_calls[0]["selected_cluster_count"] == 1
+    assert status_service.complete_calls[0]["execution"].points_written == 1
+    assert status_service.fail_calls == []
 
 
 @pytest.mark.asyncio
@@ -148,7 +183,13 @@ async def test_collection_service_persists_failed_run_records(sample_window) -> 
         )
 
     dispatcher = FakeDispatcher(failed_summary)
-    service = CollectionService(_cluster_loader, dispatcher, repository)
+    status_service = FakeStatusService()
+    service = CollectionService(
+        _cluster_loader,
+        dispatcher,
+        repository,
+        status_service=status_service,
+    )
 
     execution = await service.collect_window(sample_window, cluster_names={"cluster-a"})
 
@@ -160,6 +201,32 @@ async def test_collection_service_persists_failed_run_records(sample_window) -> 
     assert run_record.retry_count == 1
     assert run_record.error_code == "timeout"
     assert run_record.error_message == "timed out"
+    assert status_service.begin_calls[0]["total_tasks"] == 1
+    assert status_service.complete_calls[0]["execution"].summary.failed_count == 1
+
+
+@pytest.mark.asyncio
+async def test_collection_service_marks_window_failed_on_dispatch_exception(sample_window) -> None:
+    repository = FakeRepository()
+    status_service = FakeStatusService()
+
+    class RaisingDispatcher(FakeDispatcher):
+        async def run_window(self, window, clusters, progress_callback=None):
+            raise RuntimeError("dispatch exploded")
+
+    dispatcher = RaisingDispatcher(_summary_factory)
+    service = CollectionService(
+        _cluster_loader,
+        dispatcher,
+        repository,
+        status_service=status_service,
+    )
+
+    with pytest.raises(RuntimeError, match="dispatch exploded"):
+        await service.collect_window(sample_window, cluster_names={"cluster-a"})
+
+    assert status_service.begin_calls[0]["selected_cluster_count"] == 1
+    assert status_service.fail_calls[0]["error_message"] == "dispatch exploded"
 
 
 @pytest.mark.asyncio

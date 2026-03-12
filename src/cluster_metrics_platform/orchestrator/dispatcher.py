@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
+from typing import Callable
 
 from cluster_metrics_platform.collectors.base import Collector
 from cluster_metrics_platform.collectors.registry import CollectorRegistry
@@ -13,7 +14,13 @@ from cluster_metrics_platform.domain.models import (
     CollectorResult,
     TimeWindow,
 )
-from cluster_metrics_platform.orchestrator.models import DispatchSummary, DispatchTaskResult
+from cluster_metrics_platform.orchestrator.models import (
+    DispatchProgress,
+    DispatchSummary,
+    DispatchTaskResult,
+)
+
+ProgressCallback = Callable[[DispatchProgress], None]
 
 
 class Dispatcher:
@@ -42,6 +49,7 @@ class Dispatcher:
         self,
         window: TimeWindow,
         clusters: list[ClusterConfig],
+        progress_callback: ProgressCallback | None = None,
     ) -> DispatchSummary:
         collectors = self._registry.enabled_collectors()
         tasks = [
@@ -53,8 +61,39 @@ class Dispatcher:
         if not tasks:
             return DispatchSummary(window=window)
 
-        results = await asyncio.gather(*tasks)
+        results: list[DispatchTaskResult] = []
+        success_count = 0
+        partial_success_count = 0
+        failed_count = 0
+        total_tasks = len(tasks)
+
+        for completed_task in asyncio.as_completed(tasks):
+            result = await completed_task
+            results.append(result)
+            if result.status == "success":
+                success_count += 1
+            elif result.status == "partial_success":
+                partial_success_count += 1
+            elif result.status == "failed":
+                failed_count += 1
+
+            if progress_callback is not None:
+                progress_callback(
+                    DispatchProgress(
+                        window=window,
+                        total_tasks=total_tasks,
+                        completed_tasks=len(results),
+                        success_count=success_count,
+                        partial_success_count=partial_success_count,
+                        failed_count=failed_count,
+                        latest_result=result,
+                    )
+                )
+
         return DispatchSummary(window=window, results=tuple(results))
+
+    def collector_count(self) -> int:
+        return len(self._registry.enabled_collectors())
 
     async def _dispatch_one(
         self,

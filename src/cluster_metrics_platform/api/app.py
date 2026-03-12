@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from datetime import timezone
 from http import HTTPStatus
 from typing import Any
 from urllib.parse import parse_qs
 
+from cluster_metrics_platform.api.collection_status_dashboard import (
+    render_collection_status_dashboard,
+)
 from cluster_metrics_platform.api.dashboard import render_dashboard
 from cluster_metrics_platform.api.routes.baselines import (
     build_baseline_query,
@@ -17,7 +21,11 @@ from cluster_metrics_platform.api.routes.baselines import (
 StartResponse = Callable[[str, list[tuple[str, str]]], object]
 
 
-def create_app(baseline_service, metrics_table_service=None):
+def create_app(
+    baseline_service,
+    metrics_table_service=None,
+    collection_status_service=None,
+):
     """Create a tiny WSGI app exposing dashboard and API endpoints."""
 
     def app(environ: dict[str, Any], start_response: StartResponse):
@@ -32,6 +40,25 @@ def create_app(baseline_service, metrics_table_service=None):
                     {"error": "method not allowed"},
                 )
             return _html_response(start_response, HTTPStatus.OK, render_dashboard())
+
+        if path == "/collection-status":
+            if method != "GET":
+                return _json_response(
+                    start_response,
+                    HTTPStatus.METHOD_NOT_ALLOWED,
+                    {"error": "method not allowed"},
+                )
+            if collection_status_service is None:
+                return _json_response(
+                    start_response,
+                    HTTPStatus.NOT_FOUND,
+                    {"error": "not found"},
+                )
+            return _html_response(
+                start_response,
+                HTTPStatus.OK,
+                render_collection_status_dashboard(),
+            )
 
         if path == "/api/v1/metrics/recent":
             if method != "GET":
@@ -52,6 +79,30 @@ def create_app(baseline_service, metrics_table_service=None):
                     page=page,
                     page_size=page_size,
                 )
+                return _json_response(start_response, HTTPStatus.OK, payload)
+            except ValueError as exc:
+                return _json_response(
+                    start_response,
+                    HTTPStatus.BAD_REQUEST,
+                    {"error": str(exc)},
+                )
+
+        if path == "/api/v1/collection/status":
+            if method != "GET":
+                return _json_response(
+                    start_response,
+                    HTTPStatus.METHOD_NOT_ALLOWED,
+                    {"error": "method not allowed"},
+                )
+            if collection_status_service is None:
+                return _json_response(
+                    start_response,
+                    HTTPStatus.NOT_FOUND,
+                    {"error": "not found"},
+                )
+            try:
+                limit = _parse_status_limit(environ)
+                payload = collection_status_service.get_dashboard_snapshot(limit=limit)
                 return _json_response(start_response, HTTPStatus.OK, payload)
             except ValueError as exc:
                 return _json_response(
@@ -159,7 +210,18 @@ def _parse_recent_metrics_query(environ: dict[str, Any]) -> tuple[int, int]:
     return page, page_size
 
 
+def _parse_status_limit(environ: dict[str, Any]) -> int:
+    query_string = environ.get("QUERY_STRING", "")
+    raw_limit = parse_qs(query_string).get("limit", ["10"])[0]
+    try:
+        return int(raw_limit)
+    except ValueError as exc:
+        raise ValueError("limit must be an integer") from exc
+
+
 def _json_default(value: Any) -> Any:
     if hasattr(value, "isoformat"):
-        return value.isoformat()
+        if getattr(value, "tzinfo", None) is None:
+            return value.replace(tzinfo=timezone.utc).isoformat()
+        return value.astimezone(timezone.utc).isoformat()
     raise TypeError(f"Object of type {type(value)!r} is not JSON serializable")

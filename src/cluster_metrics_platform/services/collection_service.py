@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Callable, Collection
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from cluster_metrics_platform.domain.models import ClusterConfig, CollectionRun, TimeWindow
-from cluster_metrics_platform.orchestrator.models import DispatchSummary
+from cluster_metrics_platform.orchestrator.models import DispatchProgress, DispatchSummary
 
 ClusterLoader = Callable[[], list[ClusterConfig]]
 
@@ -27,10 +28,17 @@ class CollectionExecution:
 class CollectionService:
     """Load clusters, dispatch collectors, and persist normalized results."""
 
-    def __init__(self, cluster_loader: ClusterLoader, dispatcher, repository) -> None:
+    def __init__(
+        self,
+        cluster_loader: ClusterLoader,
+        dispatcher,
+        repository,
+        status_service=None,
+    ) -> None:
         self._cluster_loader = cluster_loader
         self._dispatcher = dispatcher
         self._repository = repository
+        self._status_service = status_service
 
     async def collect_window(
         self,
@@ -39,20 +47,78 @@ class CollectionService:
     ) -> CollectionExecution:
         loaded_clusters = self._cluster_loader()
         selected_clusters = _select_clusters(loaded_clusters, cluster_names)
+        selected_cluster_count = len(selected_clusters)
+        total_tasks = selected_cluster_count * self._dispatcher.collector_count()
+        started_at = _utc_now()
 
-        summary = await self._dispatcher.run_window(window, selected_clusters)
+        if self._status_service is not None:
+            self._status_service.begin_window(
+                window=window,
+                selected_cluster_count=selected_cluster_count,
+                total_tasks=total_tasks,
+                started_at=started_at,
+                step_minutes=max(window.window_seconds // 60, 1),
+            )
+
+        def progress_callback(progress: DispatchProgress) -> None:
+            if self._status_service is None:
+                return
+            last_error = None
+            if progress.latest_result.error is not None:
+                last_error = progress.latest_result.error.message
+            self._status_service.advance_window(
+                window=window,
+                selected_cluster_count=selected_cluster_count,
+                total_tasks=progress.total_tasks,
+                completed_tasks=progress.completed_tasks,
+                success_count=progress.success_count,
+                partial_success_count=progress.partial_success_count,
+                failed_count=progress.failed_count,
+                started_at=started_at,
+                step_minutes=max(window.window_seconds // 60, 1),
+                last_error=last_error,
+            )
+
+        try:
+            summary = await self._dispatcher.run_window(
+                window,
+                selected_clusters,
+                progress_callback=progress_callback,
+            )
+        except Exception as exc:
+            if self._status_service is not None:
+                self._status_service.fail_window(
+                    window=window,
+                    selected_cluster_count=selected_cluster_count,
+                    total_tasks=total_tasks,
+                    started_at=started_at,
+                    step_minutes=max(window.window_seconds // 60, 1),
+                    error_message=str(exc),
+                )
+            raise
+
         points_written = self._repository.upsert_points(summary.all_points())
         run_records = _build_run_records(summary)
         runs_written = self._repository.save_run_records(run_records)
 
-        return CollectionExecution(
+        execution = CollectionExecution(
             window=window,
             summary=summary,
             loaded_cluster_count=len(loaded_clusters),
-            selected_cluster_count=len(selected_clusters),
+            selected_cluster_count=selected_cluster_count,
             points_written=points_written,
             runs_written=runs_written,
         )
+
+        if self._status_service is not None:
+            self._status_service.complete_window(
+                execution=execution,
+                selected_cluster_count=selected_cluster_count,
+                started_at=started_at,
+                step_minutes=max(window.window_seconds // 60, 1),
+            )
+
+        return execution
 
 
 def _select_clusters(
@@ -86,3 +152,7 @@ def _build_run_records(summary: DispatchSummary) -> list[CollectionRun]:
         )
         for result in summary.results
     ]
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)

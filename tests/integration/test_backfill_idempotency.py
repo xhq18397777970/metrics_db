@@ -25,6 +25,7 @@ class FakeDispatcher:
         self,
         window: TimeWindow,
         clusters: list[ClusterConfig],
+        progress_callback=None,
     ):
         self.calls.append((window, [cluster.cluster_name for cluster in clusters]))
         results = []
@@ -49,6 +50,9 @@ class FakeDispatcher:
         from cluster_metrics_platform.orchestrator.models import DispatchSummary
 
         return DispatchSummary(window=window, results=tuple(results))
+
+    def collector_count(self) -> int:
+        return 1
 
 
 def _dispatch_result(cluster_name: str, window: TimeWindow, point: MetricPoint):

@@ -53,3 +53,15 @@ class DispatchSummary:
     def all_points(self) -> list[MetricPoint]:
         return [point for result in self.results for point in result.points]
 
+
+@dataclass(frozen=True, slots=True)
+class DispatchProgress:
+    """Live progress counters for one window dispatch cycle."""
+
+    window: TimeWindow
+    total_tasks: int
+    completed_tasks: int
+    success_count: int
+    partial_success_count: int
+    failed_count: int
+    latest_result: DispatchTaskResult

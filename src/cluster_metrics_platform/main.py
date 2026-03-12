@@ -48,6 +48,7 @@ def main(
     *,
     collection_service=None,
     backfill_service=None,
+    collection_status_service=None,
     api_app=None,
     application_factory=create_application,
     server_factory=make_server,
@@ -98,12 +99,14 @@ def main(
             if collection_service is None:
                 application_context = application_factory()
                 collection_service = application_context.collection_service
+                collection_status_service = application_context.collection_status_service
             return asyncio.run(
                 _run_scheduler(
                     collection_service,
                     cluster_names=args.cluster,
                     step_minutes=args.step_minutes,
                     iterations=args.iterations,
+                    collection_status_service=collection_status_service,
                     now_provider=scheduler_now_provider,
                     sleep_fn=scheduler_sleep,
                 )
@@ -172,6 +175,7 @@ async def _run_scheduler(
     cluster_names,
     step_minutes: int,
     iterations: int | None,
+    collection_status_service=None,
     now_provider=default_now_provider,
     sleep_fn=asyncio.sleep,
 ) -> int:
@@ -189,32 +193,46 @@ async def _run_scheduler(
     executed_iterations = 0
     last_bucket_time = None
 
-    while iterations is None or executed_iterations < iterations:
-        execution = await scheduler.collect_once(cluster_scope)
-        if getattr(execution, "window", None) is not None:
-            window = execution.window
-            if last_bucket_time != window.bucket_time:
-                payload = {
-                    "command": "run-scheduler",
-                    "window": _serialize_window(window),
-                    "selected_cluster_count": execution.selected_cluster_count,
-                    "points_written": execution.points_written,
-                    "runs_written": execution.runs_written,
-                }
-                print(
-                    json.dumps(
-                        payload,
-                        ensure_ascii=False,
-                        sort_keys=True,
-                        default=_json_default,
-                    )
-                )
-                last_bucket_time = window.bucket_time
-                executed_iterations += 1
-        if iterations is not None and executed_iterations >= iterations:
-            break
+    if collection_status_service is not None:
+        collection_status_service.mark_scheduler_idle(step_minutes=step_minutes)
 
-        await sleep_fn(_seconds_until_next_window(now_provider(), step_minutes))
+    try:
+        while iterations is None or executed_iterations < iterations:
+            execution = await scheduler.collect_once(cluster_scope)
+            if getattr(execution, "window", None) is not None:
+                window = execution.window
+                if last_bucket_time != window.bucket_time:
+                    payload = {
+                        "command": "run-scheduler",
+                        "window": _serialize_window(window),
+                        "selected_cluster_count": execution.selected_cluster_count,
+                        "points_written": execution.points_written,
+                        "runs_written": execution.runs_written,
+                    }
+                    print(
+                        json.dumps(
+                            payload,
+                            ensure_ascii=False,
+                            sort_keys=True,
+                            default=_json_default,
+                        )
+                    )
+                    last_bucket_time = window.bucket_time
+                    executed_iterations += 1
+                    if collection_status_service is not None:
+                        collection_status_service.mark_scheduler_idle(
+                            step_minutes=step_minutes,
+                            last_finished_at=now_provider(),
+                        )
+            if iterations is not None and executed_iterations >= iterations:
+                break
+
+            await sleep_fn(_seconds_until_next_window(now_provider(), step_minutes))
+            if collection_status_service is not None:
+                collection_status_service.mark_scheduler_idle(step_minutes=step_minutes)
+    finally:
+        if collection_status_service is not None:
+            collection_status_service.mark_scheduler_stopped(step_minutes=step_minutes)
 
     return 0
 

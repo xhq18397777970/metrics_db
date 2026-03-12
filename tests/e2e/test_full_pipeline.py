@@ -229,3 +229,14 @@ async def test_bootstrapped_application_runs_collection_and_serves_baseline(
         "http_code_count",
         "http_code_count",
     ]
+
+    status_status, status_body = _call_get(
+        application.api_app,
+        "/api/v1/collection/status",
+        "limit=3",
+    )
+
+    assert status_status == "200 OK"
+    assert status_body["scheduler"]["status"] in {"idle", "running", "stopped"}
+    assert status_body["windows"][0]["bucket_time"] == "2026-03-12T10:00:00+00:00"
+    assert status_body["windows"][0]["selected_cluster_count"] == 1

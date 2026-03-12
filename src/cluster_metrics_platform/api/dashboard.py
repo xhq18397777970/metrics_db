@@ -76,20 +76,24 @@ def render_dashboard() -> str:
       }
 
       button,
-      select {
+      select,
+      a.link-button {
         border-radius: 999px;
         border: 1px solid var(--line);
         font: inherit;
       }
 
-      button {
+      button,
+      a.link-button {
         padding: 10px 18px;
         background: var(--accent);
         color: #fff;
         cursor: pointer;
+        text-decoration: none;
       }
 
-      button:hover {
+      button:hover,
+      a.link-button:hover {
         background: var(--accent-strong);
       }
 
@@ -182,6 +186,7 @@ def render_dashboard() -> str:
             <option value="1000">1000</option>
           </select>
           <button id="refresh-button" type="button">Refresh</button>
+          <a class="link-button" href="/collection-status">查看采集状态</a>
         </div>
       </section>
 

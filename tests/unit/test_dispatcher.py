@@ -154,3 +154,25 @@ async def test_dispatcher_continues_when_one_collector_or_cluster_fails(sample_w
     assert summary.success_count == 3
     stable_results = [result for result in summary.results if result.collector_name == "stable"]
     assert len(stable_results) == 2
+
+
+@pytest.mark.asyncio
+async def test_dispatcher_emits_progress_updates(sample_window) -> None:
+    progress_events = []
+
+    def handler(cluster: str, window) -> CollectorResult:
+        return CollectorResult(status="success", points=[_point(cluster, window)])
+
+    registry = CollectorRegistry()
+    registry.register(FakeCollector("cpu", handler))
+    dispatcher = Dispatcher(registry=registry, task_timeout_seconds=1.0)
+
+    summary = await dispatcher.run_window(
+        sample_window,
+        _clusters(2),
+        progress_callback=progress_events.append,
+    )
+
+    assert summary.total_tasks == 2
+    assert [event.completed_tasks for event in progress_events] == [1, 2]
+    assert progress_events[-1].success_count == 2

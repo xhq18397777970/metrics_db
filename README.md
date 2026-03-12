@@ -83,8 +83,10 @@ conda run -n agent python -m cluster_metrics_platform.main serve-api --host 127.
 启动后会暴露：
 
 - `GET /`
+- `GET /collection-status`
 - `POST /api/v1/baselines/query`
 - `GET /api/v1/metrics/recent?page=1&page_size=100`
+- `GET /api/v1/collection/status?limit=10`
 
 ### Web UI
 
@@ -95,6 +97,16 @@ http://127.0.0.1:8000/
 ```
 
 页面会展示 `metric_points` 最新 `5000` 条数据，并支持翻页和刷新。
+
+### 采集状态页
+
+浏览器直接打开：
+
+```text
+http://127.0.0.1:8000/collection-status
+```
+
+页面会展示调度器是否运行、当前时间桶、已完成/未完成任务数，以及最近时间桶的执行状态。
 
 ### 查询示例
 
