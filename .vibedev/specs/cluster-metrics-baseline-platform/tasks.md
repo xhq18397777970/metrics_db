@@ -44,7 +44,7 @@
    - Files/components: `src/services/collection_service.py`, `src/services/backfill_service.py`, `src/orchestrator/scheduler.py`, `tests/unit/test_collection_service.py`, `tests/unit/test_backfill_service.py`, `tests/integration/test_backfill_idempotency.py`
    - Requirements: `Req 1.1`, `Req 1.2`, `Req 1.6`, `Req 1.7`, `Req 4.5`, `Req 5.1`, `Req 5.2`, `Req 5.3`, `Req 5.4`, `Req 5.5`, `Req 5.6`, `Req 7.1`, `Req 7.2`, `Req 7.5`, `Req 8.1`, `Req 8.3`
 
-7. [ ] Implement database rollups and the baseline query service with integration tests that compare SQL results to expected outputs.
+7. [x] Implement database rollups and the baseline query service with integration tests that compare SQL results to expected outputs.
    - Add the hourly and daily continuous aggregate SQL objects described in the design and code to initialize or refresh them.
    - Add SQL or repository bootstrap code for continuous aggregate refresh policies and separate retention policies for raw and rollup data.
    - Implement `BaselineService` for `historical_range` and `last_week_same_range` modes, using database-side aggregation instead of application-side scans.
@@ -52,7 +52,7 @@
    - Files/components: `sql/002_rollups.sql`, `src/services/baseline_service.py`, `src/storage/baseline_queries.py`, `tests/integration/test_continuous_aggregates.py`, `tests/integration/test_baseline_service.py`
    - Requirements: `Req 6.1`, `Req 6.2`, `Req 6.3`, `Req 6.4`, `Req 6.5`, `Req 8.1`, `Req 8.3`
 
-8. [ ] Expose CLI entry points for collection and backfill plus an HTTP API for baseline queries, then cover them with end-to-end tests.
+8. [x] Expose CLI entry points for collection and backfill plus an HTTP API for baseline queries, then cover them with end-to-end tests.
    - Add CLI commands for `collect-window` and `backfill` that wire into the application services created in earlier tasks.
    - Ensure the `backfill` CLI supports sequential forward collection over a requested time range using canonical 5-minute windows.
    - Add an HTTP API endpoint for baseline queries that validates request parameters and returns the normalized `BaselineResponse`.
@@ -60,7 +60,7 @@
    - Files/components: `src/main.py`, `src/api/app.py`, `src/api/routes/baselines.py`, `tests/e2e/test_collect_cli.py`, `tests/e2e/test_backfill_cli.py`, `tests/e2e/test_baseline_api.py`
    - Requirements: `Req 6.1`, `Req 6.2`, `Req 6.4`, `Req 7.1`, `Req 7.2`, `Req 7.3`, `Req 7.4`, `Req 7.5`, `Req 8.1`, `Req 8.2`, `Req 8.3`
 
-9. [ ] Wire the default collector set and add a full automated pipeline test that proves the v1 feature is integrated end to end.
+9. [x] Wire the default collector set and add a full automated pipeline test that proves the v1 feature is integrated end to end.
    - Register the four built-in collectors as the default enabled set and connect configuration, dispatcher, repository, rollups, and API modules through a single application bootstrap path.
    - Add an automated end-to-end test that seeds cluster configuration, runs a single collection window through the full pipeline, and verifies the resulting baseline query over stored data.
    - Keep the final wiring code minimal and remove any temporary scaffolding that is not exercised by the automated test suite.

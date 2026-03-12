@@ -70,6 +70,45 @@ def timescale_connection(timescale_test_dsn: str):
         yield connection
     finally:
         with connection.cursor() as cursor:
+            cursor.execute(
+                sql.SQL("SET search_path TO {}, public").format(sql.Identifier(schema_name))
+            )
+            cursor.execute(
+                """
+                DO $$
+                BEGIN
+                    IF to_regclass('metric_rollup_1d') IS NOT NULL THEN
+                        PERFORM remove_continuous_aggregate_policy(
+                            'metric_rollup_1d',
+                            if_exists => TRUE
+                        );
+                        PERFORM remove_retention_policy(
+                            'metric_rollup_1d',
+                            if_exists => TRUE
+                        );
+                    END IF;
+
+                    IF to_regclass('metric_rollup_1h') IS NOT NULL THEN
+                        PERFORM remove_continuous_aggregate_policy(
+                            'metric_rollup_1h',
+                            if_exists => TRUE
+                        );
+                        PERFORM remove_retention_policy(
+                            'metric_rollup_1h',
+                            if_exists => TRUE
+                        );
+                    END IF;
+
+                    IF to_regclass('metric_points') IS NOT NULL THEN
+                        PERFORM remove_retention_policy(
+                            'metric_points',
+                            if_exists => TRUE
+                        );
+                    END IF;
+                END
+                $$;
+                """
+            )
             cursor.execute("SET search_path TO public")
             cursor.execute(
                 sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(

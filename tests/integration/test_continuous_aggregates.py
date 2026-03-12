@@ -34,6 +34,36 @@ def _seed_hourly_points(connection) -> None:
 @pytest.mark.integration
 def test_rollups_refresh_and_policy_jobs_exist(timescale_connection) -> None:
     initialize_rollups(timescale_connection)
+
+    with timescale_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT proc_name, COUNT(*) AS job_count
+            FROM timescaledb_information.jobs
+            WHERE hypertable_schema = current_schema()
+            GROUP BY proc_name
+            ORDER BY proc_name
+            """
+        )
+        job_counts = {row["proc_name"]: row["job_count"] for row in cursor.fetchall()}
+
+        cursor.execute(
+            """
+            SELECT remove_continuous_aggregate_policy(
+                'metric_rollup_1h',
+                if_exists => TRUE
+            )
+            """
+        )
+        cursor.execute(
+            """
+            SELECT remove_continuous_aggregate_policy(
+                'metric_rollup_1d',
+                if_exists => TRUE
+            )
+            """
+        )
+
     _seed_hourly_points(timescale_connection)
     refresh_rollups(
         timescale_connection,
@@ -59,16 +89,6 @@ def test_rollups_refresh_and_policy_jobs_exist(timescale_connection) -> None:
             """
         )
         daily_rows = cursor.fetchall()
-
-        cursor.execute(
-            """
-            SELECT proc_name, COUNT(*) AS job_count
-            FROM timescaledb_information.jobs
-            GROUP BY proc_name
-            ORDER BY proc_name
-            """
-        )
-        job_counts = {row["proc_name"]: row["job_count"] for row in cursor.fetchall()}
 
     assert hourly_rows == [
         {

@@ -38,7 +38,7 @@ def _seed_baseline_points(connection) -> None:
             )
 
     for minute_offset, value in ((0, 111.0), (5, 222.0)):
-        bucket_time = base_day - timedelta(days=7) + timedelta(minutes=minute_offset)
+        bucket_time = base_day + timedelta(minutes=minute_offset)
         points.append(
             MetricPoint(
                 cluster_name="cluster-a",
