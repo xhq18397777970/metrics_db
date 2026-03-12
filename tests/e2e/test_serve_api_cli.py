@@ -39,5 +39,5 @@ def test_serve_api_cli_starts_server_and_prints_address(capsys) -> None:
     assert server.closed is True
     assert (
         capsys.readouterr().out.strip()
-        == "Serving baseline API on http://127.0.0.1:9000"
+        == "Serving dashboard and API on http://127.0.0.1:9000"
     )

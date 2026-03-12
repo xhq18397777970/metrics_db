@@ -18,6 +18,7 @@ from cluster_metrics_platform.orchestrator.dispatcher import Dispatcher
 from cluster_metrics_platform.services.backfill_service import BackfillService
 from cluster_metrics_platform.services.baseline_service import BaselineService
 from cluster_metrics_platform.services.collection_service import CollectionService
+from cluster_metrics_platform.services.metrics_table_service import MetricsTableService
 from cluster_metrics_platform.settings import AppSettings
 from cluster_metrics_platform.storage.baseline_queries import initialize_rollups
 from cluster_metrics_platform.storage.db import apply_sql_file, connect_db
@@ -38,6 +39,7 @@ class ApplicationContext:
     collection_service: CollectionService
     backfill_service: BackfillService
     baseline_service: BaselineService
+    metrics_table_service: MetricsTableService
     api_app: object
     owns_connection: bool = False
 
@@ -90,7 +92,8 @@ def create_application(
     collection_service = CollectionService(cluster_loader, dispatcher, repository)
     backfill_service = BackfillService(collection_service)
     baseline_service = BaselineService(resolved_connection)
-    api_app = create_app(baseline_service)
+    metrics_table_service = MetricsTableService(repository)
+    api_app = create_app(baseline_service, metrics_table_service)
 
     return ApplicationContext(
         settings=resolved_settings,
@@ -101,6 +104,7 @@ def create_application(
         collection_service=collection_service,
         backfill_service=backfill_service,
         baseline_service=baseline_service,
+        metrics_table_service=metrics_table_service,
         api_app=api_app,
         owns_connection=owns_connection,
     )

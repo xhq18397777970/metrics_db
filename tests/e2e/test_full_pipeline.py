@@ -44,6 +44,28 @@ def _call_app(app, payload: dict[str, object]):
     return status_headers["status"], json.loads(response_body.decode("utf-8"))
 
 
+def _call_get(app, path: str, query_string: str = ""):
+    status_headers: dict[str, object] = {}
+
+    def start_response(status, headers):
+        status_headers["status"] = status
+        status_headers["headers"] = headers
+
+    response_body = b"".join(
+        app(
+            {
+                "REQUEST_METHOD": "GET",
+                "PATH_INFO": path,
+                "QUERY_STRING": query_string,
+                "CONTENT_LENGTH": "0",
+                "wsgi.input": io.BytesIO(b""),
+            },
+            start_response,
+        )
+    )
+    return status_headers["status"], json.loads(response_body.decode("utf-8"))
+
+
 def _write_cluster_config(path: Path) -> None:
     path.write_text(
         json.dumps(
@@ -189,4 +211,21 @@ async def test_bootstrapped_application_runs_collection_and_serves_baseline(
             "p50": pytest.approx(88.0),
             "p95": pytest.approx(88.0),
         }
+    ]
+
+    metrics_status, metrics_body = _call_get(
+        application.api_app,
+        "/api/v1/metrics/recent",
+        "page=1&page_size=3",
+    )
+
+    assert metrics_status == "200 OK"
+    assert metrics_body["page"] == 1
+    assert metrics_body["page_size"] == 3
+    assert metrics_body["total_rows"] == 8
+    assert metrics_body["total_pages"] == 3
+    assert [row["metric_name"] for row in metrics_body["rows"]] == [
+        "cpu_avg",
+        "http_code_count",
+        "http_code_count",
     ]

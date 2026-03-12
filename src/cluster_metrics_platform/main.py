@@ -156,7 +156,7 @@ async def _run_backfill(
 
 def _serve_api(api_app, *, host: str, port: int, server_factory=make_server) -> int:
     server = server_factory(host, port, api_app)
-    print(f"Serving baseline API on http://{host}:{port}")
+    print(f"Serving dashboard and API on http://{host}:{port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:  # pragma: no cover - manual stop path

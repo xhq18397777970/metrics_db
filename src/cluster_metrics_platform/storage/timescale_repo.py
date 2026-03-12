@@ -80,6 +80,45 @@ DO UPDATE SET
     error_message = EXCLUDED.error_message
 """
 
+LIST_RECENT_POINTS_SQL = """
+WITH latest_points AS (
+    SELECT
+        bucket_time,
+        cluster_name,
+        metric_name,
+        metric_value,
+        labels,
+        labels_fingerprint,
+        source_tool,
+        collected_at
+    FROM metric_points
+    ORDER BY bucket_time DESC, cluster_name ASC, metric_name ASC, labels_fingerprint ASC
+    LIMIT %(visible_limit)s
+)
+SELECT
+    bucket_time,
+    cluster_name,
+    metric_name,
+    metric_value,
+    labels,
+    source_tool,
+    collected_at
+FROM latest_points
+ORDER BY bucket_time DESC, cluster_name ASC, metric_name ASC, labels_fingerprint ASC
+OFFSET %(offset)s
+LIMIT %(page_size)s
+"""
+
+COUNT_RECENT_POINTS_SQL = """
+SELECT COUNT(*) AS total_rows
+FROM (
+    SELECT 1
+    FROM metric_points
+    ORDER BY bucket_time DESC, cluster_name ASC, metric_name ASC, labels_fingerprint ASC
+    LIMIT %(visible_limit)s
+) AS latest_points
+"""
+
 
 class TimescaleMetricsRepository:
     """Persist metric points and collection execution records."""
@@ -112,6 +151,31 @@ class TimescaleMetricsRepository:
 
         self._commit_if_needed()
         return len(runs)
+
+    def count_recent_points(self, *, visible_limit: int = 5000) -> int:
+        with self._connection.cursor() as cursor:
+            cursor.execute(COUNT_RECENT_POINTS_SQL, {"visible_limit": visible_limit})
+            row = cursor.fetchone()
+            return int(row["total_rows"])
+
+    def list_recent_points(
+        self,
+        *,
+        page: int = 1,
+        page_size: int = 100,
+        visible_limit: int = 5000,
+    ) -> list[dict[str, object]]:
+        offset = max(page - 1, 0) * page_size
+        with self._connection.cursor() as cursor:
+            cursor.execute(
+                LIST_RECENT_POINTS_SQL,
+                {
+                    "visible_limit": visible_limit,
+                    "offset": offset,
+                    "page_size": page_size,
+                },
+            )
+            return list(cursor.fetchall())
 
     def _commit_if_needed(self) -> None:
         if not self._connection.autocommit:

@@ -95,3 +95,59 @@ def test_save_run_records_persists_collection_metadata(timescale_connection) -> 
     assert stored["retry_count"] == 2
     assert stored["error_code"] == "timeout"
     assert stored["error_message"] == "collector execution timed out"
+
+
+@pytest.mark.integration
+def test_list_recent_points_returns_latest_rows_first(timescale_connection) -> None:
+    repository = TimescaleMetricsRepository(timescale_connection)
+    older = MetricPoint(
+        cluster_name="cluster-a",
+        bucket_time=datetime(2026, 3, 12, 10, 0, tzinfo=timezone.utc),
+        window_start=datetime(2026, 3, 12, 10, 0, tzinfo=timezone.utc),
+        window_end=datetime(2026, 3, 12, 10, 5, tzinfo=timezone.utc),
+        metric_name="cpu_avg",
+        metric_value=11.0,
+        source_tool="cpu",
+    )
+    newer = MetricPoint(
+        cluster_name="cluster-b",
+        bucket_time=datetime(2026, 3, 12, 10, 5, tzinfo=timezone.utc),
+        window_start=datetime(2026, 3, 12, 10, 5, tzinfo=timezone.utc),
+        window_end=datetime(2026, 3, 12, 10, 10, tzinfo=timezone.utc),
+        metric_name="qps_avg",
+        metric_value=22.0,
+        source_tool="qps",
+    )
+
+    repository.upsert_points([older, newer])
+
+    rows = repository.list_recent_points(page=1, page_size=2, visible_limit=5000)
+
+    assert [row["cluster_name"] for row in rows] == ["cluster-b", "cluster-a"]
+    assert [row["metric_name"] for row in rows] == ["qps_avg", "cpu_avg"]
+
+
+@pytest.mark.integration
+def test_recent_points_pagination_uses_offset_within_visible_window(timescale_connection) -> None:
+    repository = TimescaleMetricsRepository(timescale_connection)
+    points = [
+        MetricPoint(
+            cluster_name=f"cluster-{index}",
+            bucket_time=datetime(2026, 3, 12, 10, index * 5, tzinfo=timezone.utc),
+            window_start=datetime(2026, 3, 12, 10, index * 5, tzinfo=timezone.utc),
+            window_end=datetime(2026, 3, 12, 10, (index * 5) + 5, tzinfo=timezone.utc),
+            metric_name="cpu_avg",
+            metric_value=float(index),
+            source_tool="cpu",
+        )
+        for index in range(3)
+    ]
+
+    repository.upsert_points(points)
+
+    total_rows = repository.count_recent_points(visible_limit=5000)
+    rows = repository.list_recent_points(page=2, page_size=1, visible_limit=5000)
+
+    assert total_rows == 3
+    assert len(rows) == 1
+    assert rows[0]["cluster_name"] == "cluster-1"

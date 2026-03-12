@@ -82,7 +82,19 @@ conda run -n agent python -m cluster_metrics_platform.main serve-api --host 127.
 
 启动后会暴露：
 
+- `GET /`
 - `POST /api/v1/baselines/query`
+- `GET /api/v1/metrics/recent?page=1&page_size=100`
+
+### Web UI
+
+浏览器直接打开：
+
+```text
+http://127.0.0.1:8000/
+```
+
+页面会展示 `metric_points` 最新 `5000` 条数据，并支持翻页和刷新。
 
 ### 查询示例
 
@@ -98,6 +110,12 @@ curl -X POST http://127.0.0.1:8000/api/v1/baselines/query \
     "lookback_days": 7,
     "aggregations": ["avg", "p50", "p95"]
   }'
+```
+
+查看最近原始指标：
+
+```bash
+curl 'http://127.0.0.1:8000/api/v1/metrics/recent?page=1&page_size=100'
 ```
 
 ## 手工采集
