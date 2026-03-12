@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cluster-metrics-platform"
+version = "0.1.0"
+description = "Cluster metrics collection and baseline query platform."
+readme = "docs/executable_design.md"
+requires-python = ">=3.10"
+dependencies = [
+    "httpx>=0.28,<0.29",
+    "psycopg[binary]>=3.2,<3.3",
+    "requests>=2.32,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3,<9",
+    "pytest-asyncio>=0.24,<0.25",
+    "pytest-mock>=3.14,<4",
+    "ruff>=0.11,<0.12",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra"
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+

@@ -1,12 +1,12 @@
 # Implementation Plan
 
-1. [ ] Bootstrap the Python project structure and automated test harness for the metrics platform.
+1. [x] Bootstrap the Python project structure and automated test harness for the metrics platform.
    - Create the package skeleton under `src/` plus `tests/` so later tasks have stable module boundaries.
    - Add dependency and test configuration files needed for code execution in the existing `conda` environment, including `pytest`, async test support, and lint configuration.
    - Add smoke tests that prove the package imports and the test runner works before any feature code is added.
    - Requirements: `Req 8.1`, `Req 8.2`, `Req 8.4`
 
-2. [ ] Implement the core domain models and time-window utilities with unit tests.
+2. [x] Implement the core domain models and time-window utilities with unit tests.
    - Add typed models for `TimeWindow`, `MetricPoint`, `CollectorError`, `CollectorResult`, `CollectionRun`, `BaselineQuery`, and `BaselineResponse`.
    - Implement canonical 5-minute bucket alignment logic and tests for boundary timestamps.
    - Implement forward 5-minute window iteration for historical backfill and tests that prove the cursor advances by exact bucket boundaries.
