@@ -25,6 +25,7 @@ SELECT add_continuous_aggregate_policy(
     start_offset => INTERVAL '30 days',
     end_offset => INTERVAL '1 hour',
     schedule_interval => INTERVAL '1 hour',
+    initial_start => TIMESTAMPTZ '2100-01-01 00:00:00+00',
     if_not_exists => TRUE
 );
 
@@ -55,6 +56,7 @@ SELECT add_continuous_aggregate_policy(
     start_offset => INTERVAL '180 days',
     end_offset => INTERVAL '1 day',
     schedule_interval => INTERVAL '1 day',
+    initial_start => TIMESTAMPTZ '2100-01-01 00:00:00+00',
     if_not_exists => TRUE
 );
 
@@ -62,6 +64,7 @@ SELECT add_retention_policy(
     'metric_points',
     drop_after => INTERVAL '180 days',
     schedule_interval => INTERVAL '1 day',
+    initial_start => TIMESTAMPTZ '2100-01-01 00:00:00+00',
     if_not_exists => TRUE
 );
 
@@ -69,6 +72,7 @@ SELECT add_retention_policy(
     'metric_rollup_1h',
     drop_after => INTERVAL '365 days',
     schedule_interval => INTERVAL '1 day',
+    initial_start => TIMESTAMPTZ '2100-01-01 00:00:00+00',
     if_not_exists => TRUE
 );
 
@@ -76,5 +80,6 @@ SELECT add_retention_policy(
     'metric_rollup_1d',
     drop_after => INTERVAL '730 days',
     schedule_interval => INTERVAL '1 day',
+    initial_start => TIMESTAMPTZ '2100-01-01 00:00:00+00',
     if_not_exists => TRUE
 );
