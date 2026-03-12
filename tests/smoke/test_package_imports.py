@@ -6,6 +6,11 @@ import pytest
 @pytest.mark.parametrize(
     "module_name",
     [
+        "api",
+        "api.app",
+        "api.baseline_query_service",
+        "api.main",
+        "api.metric_statistics_service",
         "cluster_metrics_platform",
         "cluster_metrics_platform.bootstrap",
         "cluster_metrics_platform.api",

@@ -9,6 +9,7 @@ from wsgiref.simple_server import make_server
 
 from api.app import create_app
 from api.baseline_query_service import BaselineQueryService
+from api.metric_statistics_service import MetricStatisticsService
 from cluster_metrics_platform.storage.db import DatabaseConfig, connect_db
 
 EXTERNAL_API_DATABASE_ENV = "BASELINE_QUERY_DATABASE_URL"
@@ -33,6 +34,7 @@ def main(
     *,
     connection=None,
     query_service=None,
+    statistics_service=None,
     api_app=None,
     server_factory=make_server,
 ) -> int:
@@ -52,7 +54,9 @@ def main(
                     connection = connect_db(_database_config(), autocommit=True)
                     owns_connection = True
                 query_service = BaselineQueryService(connection)
-            api_app = create_app(query_service)
+            if statistics_service is None:
+                statistics_service = MetricStatisticsService(connection)
+            api_app = create_app(query_service, statistics_service)
 
         server = server_factory(args.host, args.port, api_app)
         print(f"Serving standalone baseline query API on http://{args.host}:{args.port}")
@@ -79,4 +83,3 @@ def _database_config() -> DatabaseConfig:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
-

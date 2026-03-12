@@ -88,6 +88,97 @@ conda run -n agent python -m cluster_metrics_platform.main serve-api --host 127.
 - `GET /api/v1/metrics/recent?page=1&page_size=100`
 - `GET /api/v1/collection/status?limit=10`
 
+## 独立基线查询接口
+
+仓库根目录新增了独立的 [api](/Users/xiehanqi.jackson/Documents/workspace/metrics_database/api) 服务目录，用于对外提供一个只负责基线均值查询的接口，不依赖当前看板页面路由。
+
+启动方式：
+
+```bash
+export BASELINE_QUERY_DATABASE_URL=postgresql:///cluster_metrics_test
+conda run -n agent python -m api.main serve --host 127.0.0.1 --port 8003
+```
+
+如果没有单独设置 `BASELINE_QUERY_DATABASE_URL`，服务会回退使用 `CLUSTER_METRICS_DATABASE_URL`。
+
+接口：
+
+- `POST /api/v1/baseline-query`
+- `POST /api/v1/statistics-query`
+
+请求示例：
+
+```bash
+curl -X POST http://127.0.0.1:8003/api/v1/baseline-query \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "cluster_name": "lf-lan-ha1",
+    "metric_name": "cpu_avg",
+    "start_time": "2026-03-12 10:00:00",
+    "end_time": "2026-03-12 12:00:00"
+  }'
+```
+
+返回字段：
+
+- `cluster_name`
+- `metric_name`
+- `start_time`
+- `end_time`
+- `baseline_value`
+- `sample_count`
+- `status`
+
+统计查询示例：
+
+```bash
+curl -X POST http://127.0.0.1:8003/api/v1/statistics-query \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "cluster_name": "lf-lan-ha1",
+    "metric_name": "cpu_avg",
+    "start_time": "2026-03-12 10:00:00",
+    "end_time": "2026-03-12 12:00:00"
+  }'
+```
+
+统计接口返回字段：
+
+- `cluster_name`
+- `metric_name`
+- `start_time`
+- `end_time`
+- `variance_value`
+- `standard_deviation`
+- `range_value`
+- `sample_count`
+- `status`
+
+查询规则：
+
+- 使用 `metric_points` 原始时序表
+- `start_time` 包含，`end_time` 不包含
+- 按 `cluster_name + metric_name + 时间范围` 检索并计算 `AVG(metric_value)`
+- 接口入参时间格式为 `YYYY-MM-DD HH:MM:SS`，例如 `2025-03-12 19:49:46`
+- 未显式携带时区时，按 `Asia/Shanghai` 解释
+
+统计查询规则：
+
+- 使用同样的 `cluster_name + metric_name + 时间范围`
+- `variance_value` 使用总体方差 `VAR_POP(metric_value)`
+- `standard_deviation` 使用总体标准差 `STDDEV_POP(metric_value)`
+- `range_value` 为 `MAX(metric_value) - MIN(metric_value)`
+
+Python 调用示例见：
+
+- [standalone_api_examples.py](/Users/xiehanqi.jackson/Documents/workspace/metrics_database/examples/standalone_api_examples.py)
+
+运行方式：
+
+```bash
+conda run -n agent python examples/standalone_api_examples.py
+```
+
 ### Web UI
 
 浏览器直接打开：

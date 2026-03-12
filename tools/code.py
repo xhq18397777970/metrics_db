@@ -94,8 +94,8 @@ def format_window_time(value: datetime | str) -> str:
 
 if __name__ == "__main__":
     response = get_cluster_status_code_api(
-        "lf-lan-ha1",
-        "2026-03-11 09:00:14",
-        "2026-03-11 09:30:14",
+        "ozhl-lan-ha1",
+        "2026-03-12 09:00:14",
+        "2026-03-12 09:30:14",
     )
     print(response)

@@ -164,7 +164,7 @@ def datetime_str_to_timestamp(dt_str: str) -> int:
 if __name__ == "__main__":
     result = get_cluster_qps(
         "lf-lan-ha1",
-        "2026-03-11 10:00:00",
-        "2026-03-11 10:30:00",
+        "2025-03-11 10:00:00",
+        "2025-03-11 10:30:00",
     )
     print(result)

@@ -76,6 +76,7 @@ def npa_summary_data(postdata: dict[str, Any], apiurl: str, method: str = "POST"
         response.raise_for_status()
         logging.info("code:%s, response:%s", response.status_code, response.text)
         result = response.json()
+        print(result)
         if isinstance(result, dict) and isinstance(result.get("data"), list) and not result["data"]:
             result["message"] = "当前查询条件下暂无数据"
         return result
@@ -111,8 +112,8 @@ def format_window_time(value: datetime | str) -> str:
 
 if __name__ == "__main__":
     response = get_cluster_tp_api(
-        "lf-lan-ha1",
-        "2026-03-11 10:25:00",
-        "2026-03-11 10:30:00",
+        "lfrh-lan-storageha2",
+        "2026-03-12 19:00:00",
+        "2026-03-12 19:30:00",
     )
     print(response)

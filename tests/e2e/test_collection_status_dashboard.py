@@ -104,10 +104,12 @@ def test_collection_status_page_renders_dashboard() -> None:
     assert status == "200 OK"
     assert headers["Content-Type"] == "text/html; charset=utf-8"
     html = body.decode("utf-8")
-    assert "<title>采集状态看板</title>" in html
-    assert "<h1>采集状态</h1>" in html
+    assert "<title>任务后台</title>" in html
+    assert "<h1>任务后台</h1>" in html
     assert 'id="refresh-button"' in html
     assert 'id="status-table-body"' in html
+    assert 'href="/"' in html
+    assert "指标前台" in html
 
 
 def test_collection_status_api_returns_snapshot() -> None:

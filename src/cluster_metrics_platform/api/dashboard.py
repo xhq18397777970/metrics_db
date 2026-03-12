@@ -185,15 +185,15 @@ def render_dashboard() -> str:
             <option value="500">500</option>
             <option value="1000">1000</option>
           </select>
-          <button id="refresh-button" type="button">Refresh</button>
-          <a class="link-button" href="/collection-status">查看采集状态</a>
+          <button id="refresh-button" type="button">刷新</button>
+          <a class="link-button" href="/collection-status">任务后台</a>
         </div>
       </section>
 
       <p class="status" id="status">Loading data...</p>
       <div class="pager">
-        <button id="prev-button" type="button">Previous</button>
-        <button id="next-button" type="button">Next</button>
+        <button id="prev-button" type="button">上一页</button>
+        <button id="next-button" type="button">下一页</button>
         <span class="page-indicator" id="page-indicator">Page 1 / 0</span>
       </div>
 

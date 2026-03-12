@@ -78,10 +78,13 @@ def test_dashboard_page_renders_refresh_button() -> None:
     assert "<h1>集群指标库</h1>" in html
     assert "展示 metric_points 中最新的 5000 条数据" in html
     assert 'id="refresh-button"' in html
+    assert ">刷新<" in html
     assert 'id="prev-button"' in html
     assert 'id="next-button"' in html
+    assert ">上一页<" in html
+    assert ">下一页<" in html
     assert 'href="/collection-status"' in html
-    assert "查看采集状态" in html
+    assert "任务后台" in html
     assert '<option value="100" selected>100</option>' in html
 
 

@@ -11,7 +11,7 @@ def render_collection_status_dashboard() -> str:
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>采集状态看板</title>
+    <title>任务后台</title>
     <style>
       :root {
         color-scheme: light;
@@ -233,7 +233,7 @@ def render_collection_status_dashboard() -> str:
     <main class="shell">
       <section class="header">
         <div>
-          <h1>采集状态</h1>
+          <h1>任务后台</h1>
           <p class="subtitle">查看当前采集进度、后台是否停止，以及最近时间桶的完成情况</p>
         </div>
         <div class="controls">
@@ -244,7 +244,7 @@ def render_collection_status_dashboard() -> str:
             <option value="30">30</option>
           </select>
           <button id="refresh-button" type="button">刷新</button>
-          <a class="link-button" href="/">查看指标页</a>
+          <a class="link-button" href="/">指标前台</a>
         </div>
       </section>
 
