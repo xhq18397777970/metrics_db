@@ -15,28 +15,28 @@
    - Files/components: `src/domain/models.py`, `src/domain/time_window.py`, `src/config/cluster_loader.py`, `tests/unit/test_time_window.py`, `tests/unit/test_cluster_loader.py`
    - Requirements: `Req 1.1`, `Req 1.2`, `Req 1.3`, `Req 1.6`, `Req 1.7`, `Req 5.5`, `Req 5.6`, `Req 7.1`, `Req 8.1`, `Req 8.2`
 
-3. [ ] Refactor the existing tool integrations into parameterized collector adapters and cover them with fixture-based tests.
+3. [x] Refactor the existing tool integrations into parameterized collector adapters and cover them with fixture-based tests.
    - Remove hard-coded example inputs from the current `tools` entry paths and expose functions that accept `cluster_name`, `window_start`, and `window_end`.
    - Implement a collector interface and one adapter each for CPU, QPS, HTTP code, and TP that normalize tool output into `MetricPoint` objects.
    - Add fixture-driven tests for success, empty-data, malformed-response, and handled-error paths for each collector.
    - Files/components: `tools/*.py`, `src/collectors/base.py`, `src/collectors/cpu_collector.py`, `src/collectors/qps_collector.py`, `src/collectors/http_code_collector.py`, `src/collectors/tp_collector.py`, `tests/unit/test_collectors_*`
    - Requirements: `Req 1.2`, `Req 1.4`, `Req 1.5`, `Req 2.1`, `Req 2.2`, `Req 2.3`, `Req 2.4`, `Req 3.1`, `Req 3.2`, `Req 4.1`, `Req 8.1`, `Req 8.2`
 
-4. [ ] Implement the collector registry and concurrent dispatcher with retry-aware execution tests.
+4. [x] Implement the collector registry and concurrent dispatcher with retry-aware execution tests.
    - Add a registry for enabled collectors so the dispatcher can discover collectors without hard-coded branching.
    - Implement a dispatcher that expands `clusters x collectors` for one `TimeWindow`, enforces bounded concurrency, captures partial failures, and returns a summary model.
    - Add unit tests using fake collectors to verify timeout handling, retry limits, partial success, and continued execution when one collector or cluster fails.
    - Files/components: `src/collectors/registry.py`, `src/orchestrator/dispatcher.py`, `src/orchestrator/models.py`, `tests/unit/test_collector_registry.py`, `tests/unit/test_dispatcher.py`
    - Requirements: `Req 1.1`, `Req 1.2`, `Req 1.5`, `Req 2.1`, `Req 4.1`, `Req 4.2`, `Req 4.3`, `Req 4.4`, `Req 4.5`, `Req 8.1`, `Req 8.2`
 
-5. [ ] Add the TimescaleDB schema, repository layer, and integration tests for idempotent writes.
+5. [x] Add the TimescaleDB schema, repository layer, and integration tests for idempotent writes.
    - Create SQL migrations for `metric_points` and `collection_runs`, including the hypertable conversion and indexes needed by the design.
    - Implement repository code that batch-upserts metric points and persists collection run records.
    - Add integration tests against a local Homebrew-installed TimescaleDB test database to verify schema creation, idempotent upsert behavior, stable label fingerprint behavior, and run-record persistence.
    - Files/components: `sql/001_init.sql`, `src/storage/timescale_repo.py`, `src/storage/db.py`, `tests/integration/test_schema.py`, `tests/integration/test_metric_repository.py`
    - Requirements: `Req 3.1`, `Req 3.2`, `Req 3.3`, `Req 3.4`, `Req 3.5`, `Req 4.1`, `Req 4.5`, `Req 5.3`, `Req 8.1`, `Req 8.3`
 
-6. [ ] Implement the scheduled collection and backfill application services with automated tests.
+6. [x] Implement the scheduled collection and backfill application services with automated tests.
    - Add application services that compute the closed 5-minute window, load clusters, call the dispatcher, and write both metric points and run records.
    - Add a backfill service that splits a historical range into canonical 5-minute windows, advances the cursor by exactly 5 minutes after each completed window, and reuses the same collection pipeline.
    - Add automated tests that verify scheduled collection always uses the most recently closed bucket instead of completion-time drift.

@@ -1,26 +1,28 @@
-import time
-import requests
-from datetime import datetime
-import hashlib
-from typing import Any, List
+from __future__ import annotations
 
-# 配置参数
+import hashlib
+import time
+from datetime import datetime
+from typing import Any
+
+import requests
+
 CONFIG = {
-    'appCode': 'JC_PIDLB',
-    'token': '9b78f9ab773774f5b2c4b627ff007152',
-    'api_url': 'http://deeplog-lb-api.jd.com/',
+    "appCode": "JC_PIDLB",
+    "token": "9b78f9ab773774f5b2c4b627ff007152",
+    "api_url": "http://deeplog-lb-api.jd.com/",
 }
 
 
-def calculate_average(values: List[float]) -> float | None:
+def calculate_average(values: list[float]) -> float | None:
     numeric_values = [value for value in values if isinstance(value, (int, float))]
     if not numeric_values:
         return None
     return round(sum(numeric_values) / len(numeric_values), 2)
 
 
-def extract_qps_values(payload: Any) -> List[float]:
-    values: List[float] = []
+def extract_qps_values(payload: Any) -> list[float]:
+    values: list[float] = []
 
     def collect(node: Any) -> None:
         if isinstance(node, (int, float)):
@@ -46,57 +48,64 @@ def extract_qps_values(payload: Any) -> List[float]:
     return values
 
 
-def build_error_result(message: str, status_code: int | None = None, error_code: Any = None) -> dict:
-    result = {"error": message}
+def build_error_result(
+    message: str,
+    status_code: int | None = None,
+    error_code: Any = None,
+) -> dict[str, Any]:
+    result: dict[str, Any] = {"error": message}
     if status_code is not None:
         result["status_code"] = status_code
     if error_code is not None:
         result["code"] = error_code
     return result
 
-def get_np_auth_headers(app_code: str, token: str) -> dict:
+
+def get_np_auth_headers(app_code: str, token: str) -> dict[str, str]:
     now = datetime.now()
-    # 修正时间格式:%H%M%Y%m%d (小时分钟年月日)
     time_str = now.strftime("%H%M%Y%m%d")
     timestamp = str(int(time.time() * 1000))
-    # 签名字符串
     sign_str = f"#{token}NP{time_str}"
-    sign = hashlib.md5(sign_str.encode('utf-8')).hexdigest()
+    sign = hashlib.md5(sign_str.encode("utf-8")).hexdigest()
 
-    headers = {
-        "Content-Type": "application/json;charset=utf-8",  
+    return {
+        "Content-Type": "application/json;charset=utf-8",
         "appCode": app_code,
         "sign": sign,
         "time": timestamp,
     }
-    return headers
 
-def get_cluster_qps(cluster_name,start_time,end_time) -> dict:
-    headers = get_np_auth_headers(CONFIG['appCode'], CONFIG['token'])
+
+def get_cluster_qps(
+    cluster_name: str,
+    window_start: datetime | str | int,
+    window_end: datetime | str | int,
+) -> dict[str, Any]:
+    headers = get_np_auth_headers(CONFIG["appCode"], CONFIG["token"])
     url = f"{CONFIG['api_url']}v1/search"
-    
-    params={
+    start_time = to_timestamp_ms(window_start)
+    end_time = to_timestamp_ms(window_end)
+
+    params = {
         "size": 10,
         "bizName": "lbha",
         "resource": "count",
         "timeRange": {
             "start": start_time,
-            "end": end_time
+            "end": end_time,
         },
-        "interval":"10s", 
+        "interval": "10s",
         "match": [{
             "eq": {
-                "lb-node-name": [cluster_name]
-            } 
+                "lb-node-name": [cluster_name],
+            },
         }],
         "algorithm": {
             "algorithmName": "sum",
-        }
+        },
     }
     try:
         response = requests.post(url, headers=headers, json=params, timeout=30)
-        print(f"响应状态码: {response.status_code}")
-
         try:
             raw_data = response.json()
         except ValueError:
@@ -122,31 +131,40 @@ def get_cluster_qps(cluster_name,start_time,end_time) -> dict:
 
         qps = calculate_average(extract_qps_values(raw_data))
         if qps is None:
-            return build_error_result("接口返回成功，但未获取到有效 qps 数据", status_code=response.status_code)
+            return build_error_result(
+                "接口返回成功，但未获取到有效 qps 数据",
+                status_code=response.status_code,
+            )
 
         return {"qps": qps}
-        
-    except requests.exceptions.RequestException as e:
-        print(f"请求失败: {str(e)}")
-        status_code = None
-        if hasattr(e, "response") and e.response is not None:
-            status_code = e.response.status_code
-        return build_error_result(f"请求失败: {str(e)}", status_code=status_code)
 
-# 时间戳转datetime对象
-def datetime_str_to_timestamp(dt_str):
-    dt = datetime.strptime(dt_str, '%Y-%m-%d %H:%M:%S')
+    except requests.exceptions.RequestException as exc:
+        status_code = None
+        response = getattr(exc, "response", None)
+        if response is not None:
+            status_code = response.status_code
+        return build_error_result(f"请求失败: {exc}", status_code=status_code)
+
+
+def to_timestamp_ms(value: datetime | str | int) -> int:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, datetime):
+        return int(value.timestamp() * 1000)
+    if isinstance(value, str):
+        return datetime_str_to_timestamp(value)
+    raise TypeError("window time must be datetime, formatted string, or millisecond timestamp")
+
+
+def datetime_str_to_timestamp(dt_str: str) -> int:
+    dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S")
     return int(dt.timestamp() * 1000)
 
 
-# 使用示例
 if __name__ == "__main__":
-    start_time = datetime_str_to_timestamp("2026-03-11 10:00:00")
-    end_time =  datetime_str_to_timestamp("2026-03-11 10:30:00")
-    
     result = get_cluster_qps(
         "lf-lan-ha1",
-        start_time,
-        end_time
+        "2026-03-11 10:00:00",
+        "2026-03-11 10:30:00",
     )
     print(result)

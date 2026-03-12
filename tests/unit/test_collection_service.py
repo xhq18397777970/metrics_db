@@ -1,0 +1,189 @@
+from __future__ import annotations
+
+from collections.abc import Collection
+from datetime import datetime, timedelta, timezone
+
+import pytest
+
+from cluster_metrics_platform.domain.models import (
+    ClusterConfig,
+    CollectorError,
+    MetricPoint,
+    TimeWindow,
+)
+from cluster_metrics_platform.orchestrator.models import DispatchSummary, DispatchTaskResult
+from cluster_metrics_platform.orchestrator.scheduler import ScheduledCollector
+from cluster_metrics_platform.services.collection_service import CollectionService
+
+
+class FakeRepository:
+    def __init__(self) -> None:
+        self.point_batches: list[list[MetricPoint]] = []
+        self.run_batches: list[list] = []
+
+    def upsert_points(self, points: list[MetricPoint]) -> int:
+        self.point_batches.append(list(points))
+        return len(points)
+
+    def save_run_records(self, runs: list) -> int:
+        self.run_batches.append(list(runs))
+        return len(runs)
+
+
+class FakeDispatcher:
+    def __init__(self, summary_factory) -> None:
+        self.summary_factory = summary_factory
+        self.calls: list[tuple[TimeWindow, list[ClusterConfig]]] = []
+
+    async def run_window(
+        self,
+        window: TimeWindow,
+        clusters: list[ClusterConfig],
+    ) -> DispatchSummary:
+        self.calls.append((window, list(clusters)))
+        return self.summary_factory(window, clusters)
+
+
+def _cluster_loader() -> list[ClusterConfig]:
+    return [
+        ClusterConfig(group_name="g1", cluster_name="cluster-a"),
+        ClusterConfig(group_name="g1", cluster_name="cluster-b"),
+        ClusterConfig(group_name="g1", cluster_name="cluster-disabled", enabled=False),
+    ]
+
+
+def _point(cluster_name: str, window: TimeWindow, value: float) -> MetricPoint:
+    return MetricPoint(
+        cluster_name=cluster_name,
+        bucket_time=window.bucket_time,
+        window_start=window.start_time,
+        window_end=window.end_time,
+        metric_name="cpu_avg",
+        metric_value=value,
+        source_tool="fake",
+    )
+
+
+def _dispatch_result(
+    *,
+    cluster_name: str,
+    collector_name: str,
+    window: TimeWindow,
+    status: str = "success",
+    attempt_count: int = 1,
+    value: float = 1.0,
+    error: CollectorError | None = None,
+) -> DispatchTaskResult:
+    return DispatchTaskResult(
+        cluster_name=cluster_name,
+        collector_name=collector_name,
+        bucket_time=window.bucket_time,
+        status=status,
+        attempt_count=attempt_count,
+        started_at=window.start_time,
+        finished_at=window.end_time,
+        points=(_point(cluster_name, window, value),) if status != "failed" else (),
+        error=error,
+    )
+
+
+def _summary_factory(window: TimeWindow, clusters: list[ClusterConfig]) -> DispatchSummary:
+    results = tuple(
+        _dispatch_result(
+            cluster_name=cluster.cluster_name,
+            collector_name="cpu",
+            window=window,
+            value=float(index + 1),
+        )
+        for index, cluster in enumerate(clusters)
+    )
+    return DispatchSummary(window=window, results=results)
+
+
+@pytest.mark.asyncio
+async def test_collection_service_loads_filters_and_persists(sample_window) -> None:
+    repository = FakeRepository()
+    dispatcher = FakeDispatcher(_summary_factory)
+    service = CollectionService(_cluster_loader, dispatcher, repository)
+
+    execution = await service.collect_window(
+        sample_window,
+        cluster_names={"cluster-b", "cluster-disabled"},
+    )
+
+    assert execution.loaded_cluster_count == 3
+    assert execution.selected_cluster_count == 1
+    assert execution.points_written == 1
+    assert execution.runs_written == 1
+
+    dispatched_window, dispatched_clusters = dispatcher.calls[0]
+    assert dispatched_window == sample_window
+    assert [cluster.cluster_name for cluster in dispatched_clusters] == ["cluster-b"]
+
+    assert len(repository.point_batches) == 1
+    assert repository.point_batches[0][0].cluster_name == "cluster-b"
+    run_record = repository.run_batches[0][0]
+    assert run_record.cluster_name == "cluster-b"
+    assert run_record.collector_name == "cpu"
+    assert run_record.retry_count == 0
+
+
+@pytest.mark.asyncio
+async def test_collection_service_persists_failed_run_records(sample_window) -> None:
+    repository = FakeRepository()
+
+    def failed_summary(window: TimeWindow, clusters: list[ClusterConfig]) -> DispatchSummary:
+        return DispatchSummary(
+            window=window,
+            results=(
+                _dispatch_result(
+                    cluster_name=clusters[0].cluster_name,
+                    collector_name="cpu",
+                    window=window,
+                    status="failed",
+                    attempt_count=2,
+                    error=CollectorError(message="timed out", code="timeout"),
+                ),
+            ),
+        )
+
+    dispatcher = FakeDispatcher(failed_summary)
+    service = CollectionService(_cluster_loader, dispatcher, repository)
+
+    execution = await service.collect_window(sample_window, cluster_names={"cluster-a"})
+
+    assert execution.points_written == 0
+    assert execution.runs_written == 1
+    assert repository.point_batches == [[]]
+    run_record = repository.run_batches[0][0]
+    assert run_record.status == "failed"
+    assert run_record.retry_count == 1
+    assert run_record.error_code == "timeout"
+    assert run_record.error_message == "timed out"
+
+
+@pytest.mark.asyncio
+async def test_scheduled_collector_uses_closed_window_without_completion_drift() -> None:
+    captured: list[tuple[TimeWindow, Collection[str] | None]] = []
+    base_now = datetime(2026, 3, 12, 10, 7, tzinfo=timezone.utc)
+    now_calls = 0
+
+    def now_provider() -> datetime:
+        nonlocal now_calls
+        now_calls += 1
+        return base_now + timedelta(minutes=10 * (now_calls - 1))
+
+    async def collect_window(window: TimeWindow, cluster_names: Collection[str] | None):
+        captured.append((window, cluster_names))
+        return {"bucket_time": window.bucket_time}
+
+    scheduler = ScheduledCollector(collect_window=collect_window, now_provider=now_provider)
+
+    result = await scheduler.collect_once({"cluster-a"})
+
+    assert now_calls == 1
+    assert result == {"bucket_time": datetime(2026, 3, 12, 10, 0, tzinfo=timezone.utc)}
+    scheduled_window, cluster_names = captured[0]
+    assert scheduled_window.start_time == datetime(2026, 3, 12, 10, 0, tzinfo=timezone.utc)
+    assert scheduled_window.end_time == datetime(2026, 3, 12, 10, 5, tzinfo=timezone.utc)
+    assert cluster_names == {"cluster-a"}

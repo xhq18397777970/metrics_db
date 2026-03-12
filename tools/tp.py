@@ -1,16 +1,19 @@
+from __future__ import annotations
+
 import hashlib
 import logging
 import time
+from datetime import datetime
 from typing import Any
 
 import requests
 
 
-def build_error_result(message: str) -> dict:
+def build_error_result(message: str) -> dict[str, str]:
     return {"error": message}
 
 
-def calculate_tp(result: Any) -> dict:
+def calculate_tp(result: Any) -> dict[str, float] | dict[str, str]:
     if not isinstance(result, dict):
         return build_error_result("接口返回格式异常")
 
@@ -52,7 +55,7 @@ def calculate_tp(result: Any) -> dict:
     return {"tp": round(sum(diff_values) / len(diff_values), 2)}
 
 
-def npa_summary_data(postdata, apiurl, method="POST"):
+def npa_summary_data(postdata: dict[str, Any], apiurl: str, method: str = "POST") -> dict[str, Any]:
     user = "xiehanqi.jackson"
     ctime = str(int(time.time()))
     new_key = f"{user}|{ctime}"
@@ -81,17 +84,33 @@ def npa_summary_data(postdata, apiurl, method="POST"):
         return {}
 
 
-def get_cluster_tp_api(groupname, begin_time, end_time):
+def get_cluster_tp_api(
+    groupname: str,
+    begin_time: datetime | str,
+    end_time: datetime | str,
+) -> dict[str, float] | dict[str, str]:
     postdata = {
         "groupname": groupname,
-        "begin_time": begin_time,
-        "end_time": end_time,
+        "begin_time": format_window_time(begin_time),
+        "end_time": format_window_time(end_time),
     }
     apiurl = "/prod-api/api/v2/analysis/deeplog/querytpn?format=json"
     result = npa_summary_data(postdata, apiurl)
     return calculate_tp(result)
 
 
+def format_window_time(value: datetime | str) -> str:
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d %H:%M:%S")
+    if isinstance(value, str):
+        return value
+    raise TypeError("window time must be a datetime or formatted string")
+
+
 if __name__ == "__main__":
-    r = get_cluster_tp_api("lf-lan-ha1", "2026-03-11 10:25:00", "2026-03-11 10:30:00")
-    print(r)
+    response = get_cluster_tp_api(
+        "lf-lan-ha1",
+        "2026-03-11 10:25:00",
+        "2026-03-11 10:30:00",
+    )
+    print(response)

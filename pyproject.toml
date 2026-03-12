@@ -33,6 +33,9 @@ minversion = "8.0"
 testpaths = ["tests"]
 addopts = "-ra"
 asyncio_mode = "auto"
+markers = [
+    "integration: tests that require a local TimescaleDB instance",
+]
 
 [tool.ruff]
 line-length = 100
@@ -40,4 +43,3 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
-
