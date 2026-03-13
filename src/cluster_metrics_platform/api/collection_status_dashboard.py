@@ -243,6 +243,8 @@ def render_collection_status_dashboard() -> str:
             <option value="20">20</option>
             <option value="30">30</option>
           </select>
+          <button id="start-button" type="button">启动</button>
+          <button id="stop-button" type="button">终止</button>
           <button id="refresh-button" type="button">刷新</button>
           <a class="link-button" href="/">指标前台</a>
         </div>
@@ -306,6 +308,8 @@ def render_collection_status_dashboard() -> str:
     <script>
       const statusNode = document.getElementById("status");
       const limitSelect = document.getElementById("limit-select");
+      const startButton = document.getElementById("start-button");
+      const stopButton = document.getElementById("stop-button");
       const refreshButton = document.getElementById("refresh-button");
       const tableBody = document.getElementById("status-table-body");
       const schedulerState = document.getElementById("scheduler-state");
@@ -359,6 +363,9 @@ def render_collection_status_dashboard() -> str:
         taskProgress.textContent = `${scheduler.completed_tasks}/${scheduler.total_tasks}`;
         remainingTasks.textContent = String(scheduler.remaining_tasks);
         successFailed.textContent = `${scheduler.success_count} / ${scheduler.failed_count}`;
+        const canStop = scheduler.status === "running" || scheduler.status === "idle";
+        startButton.disabled = canStop && !scheduler.is_stale;
+        stopButton.disabled = !canStop;
       }
 
       function renderWindows(rows) {
@@ -411,6 +418,31 @@ def render_collection_status_dashboard() -> str:
         }
       }
 
+      async function controlScheduler(action) {
+        const actionLabel = action === "start" ? "启动" : "终止";
+        statusNode.textContent = `正在${actionLabel}自动采集任务...`;
+        startButton.disabled = true;
+        stopButton.disabled = true;
+        refreshButton.disabled = true;
+
+        try {
+          const response = await fetch(`/api/v1/scheduler/${action}`, { method: "POST" });
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.error || `HTTP ${response.status}`);
+          }
+          await loadStatus();
+          statusNode.textContent = payload.message || `自动采集任务已${actionLabel}`;
+        } catch (error) {
+          statusNode.textContent = `${actionLabel}失败: ${error.message}`;
+          await loadStatus();
+        } finally {
+          refreshButton.disabled = false;
+        }
+      }
+
+      startButton.addEventListener("click", () => controlScheduler("start"));
+      stopButton.addEventListener("click", () => controlScheduler("stop"));
       refreshButton.addEventListener("click", loadStatus);
       limitSelect.addEventListener("change", loadStatus);
       loadStatus();

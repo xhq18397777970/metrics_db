@@ -20,6 +20,9 @@ from cluster_metrics_platform.services.baseline_service import BaselineService
 from cluster_metrics_platform.services.collection_service import CollectionService
 from cluster_metrics_platform.services.collection_status_service import CollectionStatusService
 from cluster_metrics_platform.services.metrics_table_service import MetricsTableService
+from cluster_metrics_platform.services.scheduler_control_service import (
+    SchedulerControlService,
+)
 from cluster_metrics_platform.settings import AppSettings
 from cluster_metrics_platform.storage.baseline_queries import initialize_rollups
 from cluster_metrics_platform.storage.db import apply_sql_file, connect_db
@@ -41,6 +44,7 @@ class ApplicationContext:
     backfill_service: BackfillService
     baseline_service: BaselineService
     collection_status_service: CollectionStatusService
+    scheduler_control_service: SchedulerControlService
     metrics_table_service: MetricsTableService
     api_app: object
     owns_connection: bool = False
@@ -93,6 +97,10 @@ def create_application(
     cluster_loader = partial(load_clusters, resolved_settings.cluster_config_path)
     repository.sync_missing_application_names(cluster_loader())
     collection_status_service = CollectionStatusService(resolved_connection)
+    scheduler_control_service = SchedulerControlService(
+        resolved_settings,
+        collection_status_service=collection_status_service,
+    )
     collection_service = CollectionService(
         cluster_loader,
         dispatcher,
@@ -106,6 +114,7 @@ def create_application(
         baseline_service,
         metrics_table_service,
         collection_status_service,
+        scheduler_control_service,
     )
 
     return ApplicationContext(
@@ -118,6 +127,7 @@ def create_application(
         backfill_service=backfill_service,
         baseline_service=baseline_service,
         collection_status_service=collection_status_service,
+        scheduler_control_service=scheduler_control_service,
         metrics_table_service=metrics_table_service,
         api_app=api_app,
         owns_connection=owns_connection,

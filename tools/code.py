@@ -57,7 +57,6 @@ def npa_summary_data(postdata: dict[str, Any], apiurl: str, method: str = "POST"
         else:
             response = requests.get(url, params=postdata, headers=headers, timeout=30)
         response.raise_for_status()
-        print(result)
         logging.info("code:%s, response:%s", response.status_code, response.text)
         result = response.json()
         if isinstance(result, dict) and isinstance(result.get("data"), list) and not result["data"]:

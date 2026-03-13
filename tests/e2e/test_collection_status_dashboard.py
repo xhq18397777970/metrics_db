@@ -66,7 +66,21 @@ class FakeCollectionStatusService:
         }
 
 
-def _call_get(app, path: str, query_string: str = ""):
+class FakeSchedulerControlService:
+    def __init__(self) -> None:
+        self.start_calls = 0
+        self.stop_calls = 0
+
+    def start_scheduler(self):
+        self.start_calls += 1
+        return {"status": "started", "pid": 12345, "message": "自动采集任务已启动"}
+
+    def stop_scheduler(self):
+        self.stop_calls += 1
+        return {"status": "stopped", "pid": 12345, "message": "自动采集任务已终止"}
+
+
+def _call_request(app, method: str, path: str, query_string: str = ""):
     status_headers: dict[str, object] = {}
 
     def start_response(status, headers):
@@ -76,7 +90,7 @@ def _call_get(app, path: str, query_string: str = ""):
     response_body = b"".join(
         app(
             {
-                "REQUEST_METHOD": "GET",
+                "REQUEST_METHOD": method,
                 "PATH_INFO": path,
                 "QUERY_STRING": query_string,
                 "CONTENT_LENGTH": "0",
@@ -92,11 +106,20 @@ def _call_get(app, path: str, query_string: str = ""):
     )
 
 
+def _call_get(app, path: str, query_string: str = ""):
+    return _call_request(app, "GET", path, query_string)
+
+
+def _call_post(app, path: str):
+    return _call_request(app, "POST", path)
+
+
 def test_collection_status_page_renders_dashboard() -> None:
     app = create_app(
         FakeBaselineService(),
         metrics_table_service=None,
         collection_status_service=FakeCollectionStatusService(),
+        scheduler_control_service=FakeSchedulerControlService(),
     )
 
     status, headers, body = _call_get(app, "/collection-status")
@@ -107,6 +130,8 @@ def test_collection_status_page_renders_dashboard() -> None:
     assert "<title>任务后台</title>" in html
     assert "<h1>任务后台</h1>" in html
     assert 'id="refresh-button"' in html
+    assert 'id="start-button"' in html
+    assert 'id="stop-button"' in html
     assert 'id="status-table-body"' in html
     assert 'href="/"' in html
     assert "指标前台" in html
@@ -118,6 +143,7 @@ def test_collection_status_api_returns_snapshot() -> None:
         FakeBaselineService(),
         metrics_table_service=None,
         collection_status_service=service,
+        scheduler_control_service=FakeSchedulerControlService(),
     )
 
     status, headers, body = _call_get(app, "/api/v1/collection/status", "limit=20")
@@ -136,9 +162,52 @@ def test_collection_status_api_validates_limit() -> None:
         FakeBaselineService(),
         metrics_table_service=None,
         collection_status_service=FakeCollectionStatusService(),
+        scheduler_control_service=FakeSchedulerControlService(),
     )
 
     status, _, body = _call_get(app, "/api/v1/collection/status", "limit=abc")
 
     assert status == "400 Bad Request"
     assert json.loads(body.decode("utf-8")) == {"error": "limit must be an integer"}
+
+
+def test_scheduler_start_api_triggers_control_service() -> None:
+    control_service = FakeSchedulerControlService()
+    app = create_app(
+        FakeBaselineService(),
+        metrics_table_service=None,
+        collection_status_service=FakeCollectionStatusService(),
+        scheduler_control_service=control_service,
+    )
+
+    status, headers, body = _call_post(app, "/api/v1/scheduler/start")
+
+    assert status == "202 Accepted"
+    assert headers["Content-Type"] == "application/json"
+    assert json.loads(body.decode("utf-8")) == {
+        "status": "started",
+        "pid": 12345,
+        "message": "自动采集任务已启动",
+    }
+    assert control_service.start_calls == 1
+
+
+def test_scheduler_stop_api_triggers_control_service() -> None:
+    control_service = FakeSchedulerControlService()
+    app = create_app(
+        FakeBaselineService(),
+        metrics_table_service=None,
+        collection_status_service=FakeCollectionStatusService(),
+        scheduler_control_service=control_service,
+    )
+
+    status, headers, body = _call_post(app, "/api/v1/scheduler/stop")
+
+    assert status == "200 OK"
+    assert headers["Content-Type"] == "application/json"
+    assert json.loads(body.decode("utf-8")) == {
+        "status": "stopped",
+        "pid": 12345,
+        "message": "自动采集任务已终止",
+    }
+    assert control_service.stop_calls == 1

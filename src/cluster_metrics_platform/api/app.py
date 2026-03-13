@@ -25,6 +25,7 @@ def create_app(
     baseline_service,
     metrics_table_service=None,
     collection_status_service=None,
+    scheduler_control_service=None,
 ):
     """Create a tiny WSGI app exposing dashboard and API endpoints."""
 
@@ -110,6 +111,43 @@ def create_app(
                     HTTPStatus.BAD_REQUEST,
                     {"error": str(exc)},
                 )
+
+        if path == "/api/v1/scheduler/start":
+            if method != "POST":
+                return _json_response(
+                    start_response,
+                    HTTPStatus.METHOD_NOT_ALLOWED,
+                    {"error": "method not allowed"},
+                )
+            if scheduler_control_service is None:
+                return _json_response(
+                    start_response,
+                    HTTPStatus.NOT_FOUND,
+                    {"error": "not found"},
+                )
+            payload = scheduler_control_service.start_scheduler()
+            response_status = (
+                HTTPStatus.ACCEPTED
+                if payload["status"] == "started"
+                else HTTPStatus.OK
+            )
+            return _json_response(start_response, response_status, payload)
+
+        if path == "/api/v1/scheduler/stop":
+            if method != "POST":
+                return _json_response(
+                    start_response,
+                    HTTPStatus.METHOD_NOT_ALLOWED,
+                    {"error": "method not allowed"},
+                )
+            if scheduler_control_service is None:
+                return _json_response(
+                    start_response,
+                    HTTPStatus.NOT_FOUND,
+                    {"error": "not found"},
+                )
+            payload = scheduler_control_service.stop_scheduler()
+            return _json_response(start_response, HTTPStatus.OK, payload)
 
         if path != "/api/v1/baselines/query":
             return _json_response(
