@@ -39,8 +39,10 @@ class CpuCollector(Collector):
 
         metric_mapping = {
             "cluster_cpu_avg": ("cpu_avg", {}),
+            "cluster_cpu_max": ("cpu_max", {}),
             "net_in_bps_max": ("net_bps", {"direction": "in"}),
             "net_out_bps_max": ("net_bps", {"direction": "out"}),
+            "net_in_dropped_ps": ("net_dropped_ps", {"direction": "in"}),
         }
         points, invalid_fields = _build_points(
             cluster=cluster,
@@ -114,6 +116,15 @@ def _zero_points(
             bucket_time=window.bucket_time,
             window_start=window.start_time,
             window_end=window.end_time,
+            metric_name="cpu_max",
+            metric_value=0.0,
+            source_tool=source_tool,
+        ),
+        MetricPoint(
+            cluster_name=cluster,
+            bucket_time=window.bucket_time,
+            window_start=window.start_time,
+            window_end=window.end_time,
             metric_name="net_bps",
             metric_value=0.0,
             labels={"direction": "in"},
@@ -127,6 +138,16 @@ def _zero_points(
             metric_name="net_bps",
             metric_value=0.0,
             labels={"direction": "out"},
+            source_tool=source_tool,
+        ),
+        MetricPoint(
+            cluster_name=cluster,
+            bucket_time=window.bucket_time,
+            window_start=window.start_time,
+            window_end=window.end_time,
+            metric_name="net_dropped_ps",
+            metric_value=0.0,
+            labels={"direction": "in"},
             source_tool=source_tool,
         ),
     ]

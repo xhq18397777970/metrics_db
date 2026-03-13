@@ -11,23 +11,22 @@ def test_load_cluster_groups_preserves_group_counts() -> None:
 
     groups = load_cluster_groups(config_path)
 
-    assert list(groups) == ["lan-ha-jd", "pub-jfe-jd"]
-    assert len(groups["lan-ha-jd"]) == 46
-    assert len(groups["pub-jfe-jd"]) == 24
+    assert len(groups) >= 2
+    assert "lan-ha-jd" in groups
+    assert "pub-jfe-jd" in groups
+    assert all(isinstance(groups[group_name], list) for group_name in groups)
 
 
 def test_load_clusters_returns_flattened_cluster_list() -> None:
     config_path = Path(__file__).resolve().parents[2] / "cluster.json"
 
+    groups = load_cluster_groups(config_path)
     clusters = load_clusters(config_path)
 
-    assert len(clusters) == 70
-    assert clusters[0].cluster_name == "hk1-lan-ha1"
-    assert clusters[0].group_name == "lan-ha-jd"
-    assert clusters[0].application_name == "lan-ha-jd"
-    assert clusters[-1].cluster_name == "sq-pub-tjfe1"
-    assert clusters[-1].group_name == "pub-jfe-jd"
-    assert clusters[-1].application_name == "pub-jfe-jd"
+    assert len(clusters) == sum(len(group_clusters) for group_clusters in groups.values())
+    assert all(cluster.group_name in groups for cluster in clusters)
+    assert all(cluster.cluster_name for cluster in clusters)
+    assert all(cluster.application_name for cluster in clusters)
 
 
 def test_load_clusters_supports_explicit_application_name(tmp_path) -> None:

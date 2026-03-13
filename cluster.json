@@ -77,11 +77,6 @@
       "sq-pub-tjfe1"
     ]
   },
-  "pub-ha-jd": {
-    "clusters": [
-      "lf-pub-imha1"
-    ]
-  },
   "lan-jfe-jd": {
     "clusters": [
       "ht-lan-jfe1",
@@ -103,6 +98,237 @@
       "ht-pub-udpjfe1",
       "lf-pub-udpjfe1"
 ]
+  },
+  "pub-ha-jd": {
+    "clusters": [
+      "lf-pub-imha1"
+]
+  },"pub-25gdlvs-jd": {
+    "clusters": [
+    [
+      "lf-pub-dlvs1",
+      "lf-pub-dlvs2",
+      "sq-pub-dpdklvs1"
+    ]
+]
+  },"lan-25gdlvs-jd": {
+    "clusters": [
+    [
+      "lf-lan-25gdpdklvs1",
+      "lf-lan-25gdpdklvs2",
+      "zyx-lan-25dpdklvs1",
+      "zyx-lan-25dpdklvs2"
+    ]
+]
+  },"pub-dns-jd": {
+    "clusters": [
+    [
+      "hk1-pub-dns",
+      "lf-pub-dns",
+      "ozhl-pub-dns"
+    ]
+]
+  },"lan-dns-jd": {
+    "clusters": [
+    [
+      "hk1-lan-dns",
+      "sq-lan-tdns1"
+    ]
+]
+  },"lan-dpdklvs-jd": {
+    "clusters": [
+    [
+      "ht-lan-dpdklvs1",
+      "ht-lan-dpdklvs2",
+      "ht-lan-dpdklvs3",
+      "ht-lan-dpdklvs4",
+      "ht-lan-dpdklvs5",
+      "ht-lan-dpdklvs6",
+      "ht-lan-dpdklvs7",
+      "ht-lan-dpdklvs8",
+      "lf-lan-dpdklvs1",
+      "lf-lan-dpdklvs2",
+      "lf-lan-dpdklvs3",
+      "lf-lan-dpdklvs4",
+      "lf-lan-dpdklvs5",
+      "lf-lan-dpdklvs6",
+      "lfrh-lan-dpdklvs1",
+      "lfrh-lan-dpdklvs2",
+      "lfrh-lan-dpdklvs3",
+      "lfrh-lan-dpdklvs4",
+      "lfrh-lan-dpdklvs5",
+      "lfrh-lan-dpdklvs6",
+      "sq-lan-dpdklvs1",
+      "sq-lan-dpdklvs2",
+      "dt-lan-dpdklvs1",
+      "dt-lan-dpdklvs2",
+      "ga-lan-dpdklvs1",
+      "ga-lan-dpdklvs2"
+    ]
+]
+  },"pub-dpdklvs-jd": {
+    "clusters": [
+    [
+      "ht-pub-ipv6dpdklvs1",
+      "ht-pub-lcdpdklvs1",
+      "ht-pub-udpdlvs1",
+      "lf-pub-dpdklvs3",
+      "lfrh-pub-dpdklvs1",
+      "lfrh-pub-dpdklvs2",
+      "lfrh-pub-dpdklvs3",
+      "lfrh-pub-lcdpdklvs1",
+      "lfrh-pub-udpdlvs",
+      "sq-pub-udpdlvs1",
+      "zq-pub-lcdpdklvs1",
+      "zyx-pub-dpdklvs1",
+      "zyx-pub-dpdklvs2",
+      "zyx-pub-ipv6dpdklvs1",
+      "yt-pub-lcdpdklvs1",
+      "sq-pub-dpdklvs1",
+      "lf-pub-dlvs1",
+      "lf-pub-dlvs2",
+      "lfrh-pub-ipv6dlvs1",
+      "ga-pub-ipv6dlvs1",
+      "ga-pub-ipv6dlvs2",
+      "ga-pub-dpdklvs1",
+      "ga-pub-dpdklvs2"
+    ]
+]
+  },
+  "pub-jdns-jd": {
+    "clusters": [
+    [
+      "ht-pub-jdns",
+      "lf-pub-jdns",
+      "lf-pub-jdns1",
+      "lfrh-pub-jdns",
+      "tz-pub-edgejdns",
+      "lfrh-pub-ipv6jdns1"
+    ]
+]
+  },
+  "pub-redns-jd": {
+    "clusters": [
+    [
+      "ht-pub-redns1",
+      "lf-pub-redns1",
+      "lfrh-pub-redns",
+      "sq-pub-redns1",
+      "zyx-pub-redns1",
+      "zyx-pub-redns2",
+      "ozhl-pub-redns",
+      "ga-pub-redns1"
+    ]
+]
+  },
+  "pub-dpdkdns-jd": {
+    "clusters": [
+    [
+      "hk1-pub-adns",
+      "ht-pub-adns",
+      "lf-pub-adns",
+      "lfrh-pub-adns"
+    ]
+]
+  },
+  "lan-jdns-jd": {
+    "clusters": [
+    [
+      "ga-lan-jdns1",
+      "lf-lan-jdns",
+      "lf-lan-jdns2",
+      "ozhl-lan-jdns",
+      "sq-lan-jdns1",
+      "ht-lan-jdns1",
+      "zyx-lan-jdns",
+      "lfrh-lan-jdns",
+      "us-lan-jdns1"
+    ]
+]
+  },
+  "lan-dpdk-jd": {
+    "clusters": [
+    [
+      "ht-lan-50gdpdk1",
+      "ht-lan-50gdpdk2",
+      "lf-lan-idcdpdk1",
+      "lfrh-lan-50gdpdk1",
+      "lfrh-lan-50gdpdk2",
+      "lfrh-lan-idcdpdk1",
+      "lfrh-lan-netdpdk1",
+      "lf-lan-netdpdk1",
+      "lfrh-lan-sdpdk1",
+      "lfrh-lan-sdpdk2",
+      "ga-lan-sq1dpdk1",
+      "ga-lan-sq1dpdk2",
+      "ga-lan-sq1dpdk3",
+      "ga-lan-sq1dpdk4",
+      "yt-lan-wafdpdk1",
+      "lfrh-lan-wafdpdk1",
+      "lfrh-lan-wafdpdk2",
+      "lfrh-lan-wafdpdk3",
+      "lfrh-lan-wafdpdk4",
+      "zyx-lan-wafdpdk1",
+      "zyx-lan-wafdpdk2",
+      "ga-lan-wafdpdk1",
+      "ga-lan-wafdpdk2",
+      "ga-lan-wafdpdk3",
+      "ga-lan-wafdpdk4",
+      "ozhl-lan-wafdpdk1",
+      "ga-lan-dpdk1",
+      "ga-lan-dpdk2",
+      "ga-lan-dpdk3",
+      "ga-lan-dpdk4",
+      "ga-lan-dpdk5",
+      "ga-lan-dpdk6",
+      "ga-lan-dpdk7",
+      "ga-lan-dpdk8",
+      "lf-lan-dpdk1",
+      "lf-lan-dpdk2",
+      "lf-lan-wafdpdk1",
+      "lf-lan-wafdpdk2",
+      "lfrh-lan-dpdk1",
+      "lfrh-lan-dpdk2",
+      "zq-lan-dpdk1",
+      "sq-lan-dpdk1",
+      "sq-lan-dpdk2"
+    ]
+]
+  },
+  "pub-dpdk-jd": {
+    "clusters": [
+    [
+      "hk1-pub-dpdk1",
+      "lf-pub-dpdk1",
+      "ht-pub-dpdk2",
+      "lfrh-pub-dpdk2",
+      "sq-pub-dpdk1",
+      "lfrh-pub-dpdk1",
+      "sq-pub-tdpdk",
+      "ozhl-pub-dpdk1",
+      "yt-pub-dpdk1",
+      "lfrh-pub-quicdpdk"
+    ]
+]
+  },
+  "pub-rehttpdns-jd": {
+    "clusters": [
+    [
+      "lf-pub-rehttpdns1",
+      "ht-pub-rehttpdns1",
+      "ga-pub-rehttpdns1"
+    ]
+]
+  },
+  "pub-dohdns-jd": {
+    "clusters": [
+      [
+      "lfrh-pub-dohdns1",
+      "ga-pub-dohdns1",
+      "lfrh-pub-dohdns2"
+    ]
+]
   }
+
 
 }

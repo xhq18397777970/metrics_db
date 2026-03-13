@@ -135,7 +135,6 @@ def get_cluster_qps(
                 "接口返回成功，但未获取到有效 qps 数据",
                 status_code=response.status_code,
             )
-
         return {"qps": qps}
 
     except requests.exceptions.RequestException as exc:
@@ -164,7 +163,7 @@ def datetime_str_to_timestamp(dt_str: str) -> int:
 if __name__ == "__main__":
     result = get_cluster_qps(
         "lf-lan-ha1",
-        "2025-03-11 10:00:00",
-        "2025-03-11 10:30:00",
+        "2026-03-12 10:00:00",
+        "2026-03-12 10:30:00",
     )
     print(result)

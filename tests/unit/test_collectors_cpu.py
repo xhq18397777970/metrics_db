@@ -10,8 +10,10 @@ from cluster_metrics_platform.collectors.cpu_collector import CpuCollector
 def cpu_success_payload() -> dict[str, float]:
     return {
         "cluster_cpu_avg": 12.5,
+        "cluster_cpu_max": 19.8,
         "net_in_bps_max": 100.0,
         "net_out_bps_max": 120.0,
+        "net_in_dropped_ps": 3.2,
     }
 
 
@@ -22,11 +24,19 @@ def test_cpu_collector_success(monkeypatch, sample_window, cpu_success_payload) 
 
     assert result.status == "success"
     assert result.error is None
-    assert [point.metric_name for point in result.points] == ["cpu_avg", "net_bps", "net_bps"]
+    assert [point.metric_name for point in result.points] == [
+        "cpu_avg",
+        "cpu_max",
+        "net_bps",
+        "net_bps",
+        "net_dropped_ps",
+    ]
     assert [point.labels for point in result.points] == [
+        {},
         {},
         {"direction": "in"},
         {"direction": "out"},
+        {"direction": "in"},
     ]
 
 
@@ -41,15 +51,21 @@ def test_cpu_collector_empty_data(monkeypatch, sample_window) -> None:
 
     assert result.status == "success"
     assert result.error is None
-    assert [point.metric_value for point in result.points] == [0.0, 0.0, 0.0]
-    assert [point.metric_name for point in result.points] == ["cpu_avg", "net_bps", "net_bps"]
+    assert [point.metric_value for point in result.points] == [0.0, 0.0, 0.0, 0.0, 0.0]
+    assert [point.metric_name for point in result.points] == [
+        "cpu_avg",
+        "cpu_max",
+        "net_bps",
+        "net_bps",
+        "net_dropped_ps",
+    ]
 
 
 def test_cpu_collector_malformed_response(monkeypatch, sample_window) -> None:
     monkeypatch.setattr(
         cpu_tool,
         "get_cluster_cpu_metrics",
-        lambda *_args: {"cluster_cpu_avg": "bad", "net_in_bps_max": None},
+        lambda *_args: {"cluster_cpu_avg": "bad", "cluster_cpu_max": None},
     )
 
     result = CpuCollector().collect("lf-lan-ha1", sample_window)

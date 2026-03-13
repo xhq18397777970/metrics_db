@@ -8,7 +8,13 @@ from typing import Any
 
 import requests
 
-TARGET_METRICS = ("cluster_cpu_avg", "net_in_bps_max", "net_out_bps_max")
+TARGET_METRICS = (
+    "cluster_cpu_avg",
+    "cluster_cpu_max",
+    "net_in_bps_max",
+    "net_out_bps_max",
+    "net_in_dropped_ps",
+)
 
 
 def calculate_average(values: list[Any]) -> float | None:
@@ -49,6 +55,7 @@ def npa_summary_data(postdata: dict[str, Any], apiurl: str, method: str = "POST"
         response.raise_for_status()
         logging.info("code:%s, response:%s", response.status_code, response.text)
         result = response.json()
+        # print(result)
         if isinstance(result, dict) and isinstance(result.get("data"), list) and not result["data"]:
             result["message"] = "当前查询条件下暂无数据"
         return result
