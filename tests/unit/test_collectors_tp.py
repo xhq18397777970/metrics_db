@@ -25,9 +25,11 @@ def test_tp_collector_empty_data(monkeypatch, sample_window) -> None:
 
     result = TpCollector().collect("lf-lan-ha1", sample_window)
 
-    assert result.status == "failed"
-    assert result.error is not None
-    assert result.error.message == "当前查询条件下暂无数据"
+    assert result.status == "success"
+    assert result.error is None
+    assert len(result.points) == 1
+    assert result.points[0].metric_name == "tp_avg"
+    assert result.points[0].metric_value == 0.0
 
 
 def test_tp_collector_malformed_response(monkeypatch, sample_window) -> None:

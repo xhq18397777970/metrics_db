@@ -7,7 +7,12 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from cluster_metrics_platform.domain.models import ClusterConfig, CollectionRun, TimeWindow
+from cluster_metrics_platform.domain.models import (
+    ClusterConfig,
+    CollectionRun,
+    MetricPoint,
+    TimeWindow,
+)
 from cluster_metrics_platform.orchestrator.models import DispatchProgress, DispatchSummary
 
 ClusterLoader = Callable[[], list[ClusterConfig]]
@@ -47,6 +52,10 @@ class CollectionService:
     ) -> CollectionExecution:
         loaded_clusters = self._cluster_loader()
         selected_clusters = _select_clusters(loaded_clusters, cluster_names)
+        cluster_index = {
+            cluster.cluster_name: cluster
+            for cluster in selected_clusters
+        }
         selected_cluster_count = len(selected_clusters)
         total_tasks = selected_cluster_count * self._dispatcher.collector_count()
         started_at = _utc_now()
@@ -97,8 +106,10 @@ class CollectionService:
                 )
             raise
 
-        points_written = self._repository.upsert_points(summary.all_points())
-        run_records = _build_run_records(summary)
+        points = summary.all_points()
+        _attach_application_names(points, cluster_index)
+        points_written = self._repository.upsert_points(points)
+        run_records = _build_run_records(summary, cluster_index)
         runs_written = self._repository.save_run_records(run_records)
 
         execution = CollectionExecution(
@@ -136,7 +147,10 @@ def _select_clusters(
     ]
 
 
-def _build_run_records(summary: DispatchSummary) -> list[CollectionRun]:
+def _build_run_records(
+    summary: DispatchSummary,
+    cluster_index: dict[str, ClusterConfig],
+) -> list[CollectionRun]:
     return [
         CollectionRun(
             run_id=uuid4(),
@@ -149,9 +163,24 @@ def _build_run_records(summary: DispatchSummary) -> list[CollectionRun]:
             finished_at=result.finished_at,
             error_code=result.error.code if result.error else None,
             error_message=result.error.message if result.error else None,
+            application_name=cluster_index.get(result.cluster_name).application_name
+            if result.cluster_name in cluster_index
+            else "",
         )
         for result in summary.results
     ]
+
+
+def _attach_application_names(
+    points: list[MetricPoint],
+    cluster_index: dict[str, ClusterConfig],
+) -> None:
+    for point in points:
+        if point.application_name:
+            continue
+        cluster = cluster_index.get(point.cluster_name)
+        if cluster is not None:
+            point.application_name = cluster.application_name
 
 
 def _utc_now() -> datetime:

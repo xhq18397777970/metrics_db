@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tools.tp as tp_tool
-from cluster_metrics_platform.collectors.base import Collector
+from cluster_metrics_platform.collectors.base import Collector, is_no_data_payload
 from cluster_metrics_platform.domain.models import MetricPoint, TimeWindow
 
 
@@ -25,6 +25,20 @@ class TpCollector(Collector):
                 code="malformed_response",
             )
         if payload.get("error"):
+            if is_no_data_payload(payload):
+                return self._success(
+                    [
+                        MetricPoint(
+                            cluster_name=cluster,
+                            bucket_time=window.bucket_time,
+                            window_start=window.start_time,
+                            window_end=window.end_time,
+                            metric_name="tp_avg",
+                            metric_value=0.0,
+                            source_tool=self.name,
+                        )
+                    ]
+                )
             return self._failure(str(payload["error"]), code="tool_error")
 
         value = payload.get("tp")

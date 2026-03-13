@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS metric_points (
     window_start        TIMESTAMPTZ NOT NULL,
     window_end          TIMESTAMPTZ NOT NULL,
     cluster_name        TEXT NOT NULL,
+    application_name    TEXT NOT NULL DEFAULT '',
     metric_name         TEXT NOT NULL,
     metric_value        DOUBLE PRECISION NOT NULL,
     labels              JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -11,6 +12,9 @@ CREATE TABLE IF NOT EXISTS metric_points (
     collected_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (bucket_time, cluster_name, metric_name, labels_fingerprint)
 );
+
+ALTER TABLE metric_points
+    ADD COLUMN IF NOT EXISTS application_name TEXT NOT NULL DEFAULT '';
 
 SELECT create_hypertable(
     'metric_points',
@@ -25,6 +29,7 @@ CREATE TABLE IF NOT EXISTS collection_runs (
     run_id            UUID PRIMARY KEY,
     bucket_time       TIMESTAMPTZ NOT NULL,
     cluster_name      TEXT NOT NULL,
+    application_name  TEXT NOT NULL DEFAULT '',
     collector_name    TEXT NOT NULL,
     status            TEXT NOT NULL,
     retry_count       INTEGER NOT NULL DEFAULT 0,
@@ -33,6 +38,9 @@ CREATE TABLE IF NOT EXISTS collection_runs (
     error_code        TEXT NULL,
     error_message     TEXT NULL
 );
+
+ALTER TABLE collection_runs
+    ADD COLUMN IF NOT EXISTS application_name TEXT NOT NULL DEFAULT '';
 
 CREATE INDEX IF NOT EXISTS idx_collection_runs_bucket_status
     ON collection_runs (bucket_time, status);

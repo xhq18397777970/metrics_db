@@ -38,7 +38,12 @@ class ClusterConfig:
 
     group_name: str
     cluster_name: str
+    application_name: str = ""
     enabled: bool = True
+
+    def __post_init__(self) -> None:
+        if not self.application_name:
+            object.__setattr__(self, "application_name", self.group_name)
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +69,7 @@ class MetricPoint:
     labels_fingerprint: str = ""
     source_tool: str = ""
     collected_at: datetime | None = None
+    application_name: str = ""
 
     def __post_init__(self) -> None:
         self.labels = dict(self.labels)
@@ -96,6 +102,7 @@ class CollectionRun:
     finished_at: datetime
     error_code: str | None = None
     error_message: str | None = None
+    application_name: str = ""
 
 
 @dataclass(frozen=True, slots=True)

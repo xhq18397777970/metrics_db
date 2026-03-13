@@ -76,6 +76,33 @@
       "ga-pub-jfe2",
       "sq-pub-tjfe1"
     ]
+  },
+  "pub-ha-jd": {
+    "clusters": [
+      "lf-pub-imha1"
+    ]
+  },
+  "lan-jfe-jd": {
+    "clusters": [
+      "ht-lan-jfe1",
+      "ht-lan-jfe2",
+      "lfrh-lan-jfe1",
+      "lfrh-lan-jfe2",
+      "sq-lan-tjfe1",
+      "ga-lan-jfe1",
+      "ga-lan-jfe2",
+      "ozhl-lan-jfe1",
+      "flkf-lan-jfe1",
+      "us-lan-jfe1",
+      "us-lan-jfe2"
+]
+  },
+  "pub-udpjfe-jd": {
+    "clusters": [
+      "ht-pub-ipv6udpjfe1",
+      "ht-pub-udpjfe1",
+      "lf-pub-udpjfe1"
+]
   }
 
 }

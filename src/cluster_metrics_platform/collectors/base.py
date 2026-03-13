@@ -11,6 +11,12 @@ from cluster_metrics_platform.domain.models import (
     TimeWindow,
 )
 
+NO_DATA_MESSAGE_PATTERNS = (
+    "暂无数据",
+    "返回数据为空",
+    "未获取到有效",
+)
+
 
 class Collector(ABC):
     """Abstract collector that normalizes one tool into metric points."""
@@ -41,3 +47,20 @@ class Collector(ABC):
 
     def _success(self, points: list[MetricPoint]) -> CollectorResult:
         return CollectorResult(status="success", points=points)
+
+
+def is_no_data_payload(payload: object) -> bool:
+    """Return True when a tool payload represents a successful empty result."""
+
+    if not isinstance(payload, dict):
+        return False
+
+    status_code = payload.get("status_code")
+    if status_code not in (None, 200):
+        return False
+
+    message = payload.get("error") or payload.get("message")
+    if not isinstance(message, str):
+        return False
+
+    return any(pattern in message for pattern in NO_DATA_MESSAGE_PATTERNS)

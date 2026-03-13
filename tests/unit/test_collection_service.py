@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Collection
 from datetime import datetime, timedelta, timezone
 
@@ -72,9 +73,14 @@ class FakeStatusService:
 
 def _cluster_loader() -> list[ClusterConfig]:
     return [
-        ClusterConfig(group_name="g1", cluster_name="cluster-a"),
-        ClusterConfig(group_name="g1", cluster_name="cluster-b"),
-        ClusterConfig(group_name="g1", cluster_name="cluster-disabled", enabled=False),
+        ClusterConfig(group_name="g1", cluster_name="cluster-a", application_name="应用A"),
+        ClusterConfig(group_name="g1", cluster_name="cluster-b", application_name="应用A"),
+        ClusterConfig(
+            group_name="g1",
+            cluster_name="cluster-disabled",
+            application_name="应用A",
+            enabled=False,
+        ),
     ]
 
 
@@ -154,8 +160,10 @@ async def test_collection_service_loads_filters_and_persists(sample_window) -> N
 
     assert len(repository.point_batches) == 1
     assert repository.point_batches[0][0].cluster_name == "cluster-b"
+    assert repository.point_batches[0][0].application_name == "应用A"
     run_record = repository.run_batches[0][0]
     assert run_record.cluster_name == "cluster-b"
+    assert run_record.application_name == "应用A"
     assert run_record.collector_name == "cpu"
     assert run_record.retry_count == 0
     assert status_service.begin_calls[0]["selected_cluster_count"] == 1
@@ -198,6 +206,7 @@ async def test_collection_service_persists_failed_run_records(sample_window) -> 
     assert repository.point_batches == [[]]
     run_record = repository.run_batches[0][0]
     assert run_record.status == "failed"
+    assert run_record.application_name == "应用A"
     assert run_record.retry_count == 1
     assert run_record.error_code == "timeout"
     assert run_record.error_message == "timed out"
@@ -227,6 +236,57 @@ async def test_collection_service_marks_window_failed_on_dispatch_exception(samp
 
     assert status_service.begin_calls[0]["selected_cluster_count"] == 1
     assert status_service.fail_calls[0]["error_message"] == "dispatch exploded"
+
+
+@pytest.mark.asyncio
+async def test_collection_service_reloads_cluster_config_for_next_window(
+    sample_window,
+    tmp_path,
+) -> None:
+    config_path = tmp_path / "cluster.json"
+    config_path.write_text(
+        json.dumps(
+            {"app-a": {"application_name": "应用A", "clusters": ["cluster-a"]}}
+        ),
+        encoding="utf-8",
+    )
+
+    from cluster_metrics_platform.config.cluster_loader import load_clusters
+
+    repository = FakeRepository()
+    dispatcher = FakeDispatcher(_summary_factory)
+    service = CollectionService(
+        lambda: load_clusters(config_path),
+        dispatcher,
+        repository,
+    )
+
+    first_execution = await service.collect_window(sample_window)
+
+    config_path.write_text(
+        json.dumps(
+            {"app-b": {"application_name": "应用B", "clusters": ["cluster-b"]}}
+        ),
+        encoding="utf-8",
+    )
+
+    next_window = TimeWindow(
+        bucket_time=sample_window.bucket_time + timedelta(minutes=5),
+        start_time=sample_window.start_time + timedelta(minutes=5),
+        end_time=sample_window.end_time + timedelta(minutes=5),
+        window_seconds=sample_window.window_seconds,
+    )
+
+    second_execution = await service.collect_window(next_window)
+
+    assert first_execution.selected_cluster_count == 1
+    assert second_execution.selected_cluster_count == 1
+    assert [cluster.cluster_name for _, clusters in dispatcher.calls for cluster in clusters] == [
+        "cluster-a",
+        "cluster-b",
+    ]
+    assert repository.point_batches[0][0].application_name == "应用A"
+    assert repository.point_batches[1][0].application_name == "应用B"
 
 
 @pytest.mark.asyncio

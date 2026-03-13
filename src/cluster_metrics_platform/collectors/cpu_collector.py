@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import tools.cpu as cpu_tool
-from cluster_metrics_platform.collectors.base import Collector
+from cluster_metrics_platform.collectors.base import Collector, is_no_data_payload
 from cluster_metrics_platform.domain.models import MetricPoint, TimeWindow
 
 
@@ -27,6 +27,14 @@ class CpuCollector(Collector):
                 code="malformed_response",
             )
         if payload.get("error"):
+            if is_no_data_payload(payload):
+                return self._success(
+                    _zero_points(
+                        cluster=cluster,
+                        window=window,
+                        source_tool=self.name,
+                    )
+                )
             return self._failure(str(payload["error"]), code="tool_error")
 
         metric_mapping = {
@@ -84,3 +92,41 @@ def _build_points(
             )
         )
     return points, invalid_fields
+
+
+def _zero_points(
+    cluster: str,
+    window: TimeWindow,
+    source_tool: str,
+) -> list[MetricPoint]:
+    return [
+        MetricPoint(
+            cluster_name=cluster,
+            bucket_time=window.bucket_time,
+            window_start=window.start_time,
+            window_end=window.end_time,
+            metric_name="cpu_avg",
+            metric_value=0.0,
+            source_tool=source_tool,
+        ),
+        MetricPoint(
+            cluster_name=cluster,
+            bucket_time=window.bucket_time,
+            window_start=window.start_time,
+            window_end=window.end_time,
+            metric_name="net_bps",
+            metric_value=0.0,
+            labels={"direction": "in"},
+            source_tool=source_tool,
+        ),
+        MetricPoint(
+            cluster_name=cluster,
+            bucket_time=window.bucket_time,
+            window_start=window.start_time,
+            window_end=window.end_time,
+            metric_name="net_bps",
+            metric_value=0.0,
+            labels={"direction": "out"},
+            source_tool=source_tool,
+        ),
+    ]

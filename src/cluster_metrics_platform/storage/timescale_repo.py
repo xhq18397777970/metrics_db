@@ -5,7 +5,7 @@ from __future__ import annotations
 from psycopg import Connection
 from psycopg.types.json import Jsonb
 
-from cluster_metrics_platform.domain.models import CollectionRun, MetricPoint
+from cluster_metrics_platform.domain.models import ClusterConfig, CollectionRun, MetricPoint
 
 UPSERT_METRIC_POINTS_SQL = """
 INSERT INTO metric_points (
@@ -13,6 +13,7 @@ INSERT INTO metric_points (
     window_start,
     window_end,
     cluster_name,
+    application_name,
     metric_name,
     metric_value,
     labels,
@@ -25,6 +26,7 @@ VALUES (
     %(window_start)s,
     %(window_end)s,
     %(cluster_name)s,
+    %(application_name)s,
     %(metric_name)s,
     %(metric_value)s,
     %(labels)s,
@@ -36,6 +38,7 @@ ON CONFLICT (bucket_time, cluster_name, metric_name, labels_fingerprint)
 DO UPDATE SET
     window_start = EXCLUDED.window_start,
     window_end = EXCLUDED.window_end,
+    application_name = EXCLUDED.application_name,
     metric_value = EXCLUDED.metric_value,
     labels = EXCLUDED.labels,
     source_tool = EXCLUDED.source_tool,
@@ -47,6 +50,7 @@ INSERT INTO collection_runs (
     run_id,
     bucket_time,
     cluster_name,
+    application_name,
     collector_name,
     status,
     retry_count,
@@ -59,6 +63,7 @@ VALUES (
     %(run_id)s,
     %(bucket_time)s,
     %(cluster_name)s,
+    %(application_name)s,
     %(collector_name)s,
     %(status)s,
     %(retry_count)s,
@@ -71,6 +76,7 @@ ON CONFLICT (run_id)
 DO UPDATE SET
     bucket_time = EXCLUDED.bucket_time,
     cluster_name = EXCLUDED.cluster_name,
+    application_name = EXCLUDED.application_name,
     collector_name = EXCLUDED.collector_name,
     status = EXCLUDED.status,
     retry_count = EXCLUDED.retry_count,
@@ -85,6 +91,7 @@ WITH latest_points AS (
     SELECT
         bucket_time,
         cluster_name,
+        application_name,
         metric_name,
         metric_value,
         labels,
@@ -98,6 +105,7 @@ WITH latest_points AS (
 SELECT
     bucket_time,
     cluster_name,
+    application_name,
     metric_name,
     metric_value,
     labels,
@@ -152,6 +160,43 @@ class TimescaleMetricsRepository:
         self._commit_if_needed()
         return len(runs)
 
+    def sync_missing_application_names(self, clusters: list[ClusterConfig]) -> int:
+        """Fill empty application names for existing rows using current cluster config."""
+
+        updated_rows = 0
+        with self._connection.cursor() as cursor:
+            for cluster in clusters:
+                cursor.execute(
+                    """
+                    UPDATE metric_points
+                    SET application_name = %(application_name)s
+                    WHERE cluster_name = %(cluster_name)s
+                      AND application_name = ''
+                    """,
+                    {
+                        "cluster_name": cluster.cluster_name,
+                        "application_name": cluster.application_name,
+                    },
+                )
+                updated_rows += cursor.rowcount
+
+                cursor.execute(
+                    """
+                    UPDATE collection_runs
+                    SET application_name = %(application_name)s
+                    WHERE cluster_name = %(cluster_name)s
+                      AND application_name = ''
+                    """,
+                    {
+                        "cluster_name": cluster.cluster_name,
+                        "application_name": cluster.application_name,
+                    },
+                )
+                updated_rows += cursor.rowcount
+
+        self._commit_if_needed()
+        return updated_rows
+
     def count_recent_points(self, *, visible_limit: int = 5000) -> int:
         with self._connection.cursor() as cursor:
             cursor.execute(COUNT_RECENT_POINTS_SQL, {"visible_limit": visible_limit})
@@ -188,6 +233,7 @@ class TimescaleMetricsRepository:
             "window_start": point.window_start,
             "window_end": point.window_end,
             "cluster_name": point.cluster_name,
+            "application_name": point.application_name,
             "metric_name": point.metric_name,
             "metric_value": point.metric_value,
             "labels": Jsonb(point.labels),
@@ -202,6 +248,7 @@ class TimescaleMetricsRepository:
             "run_id": run.run_id,
             "bucket_time": run.bucket_time,
             "cluster_name": run.cluster_name,
+            "application_name": run.application_name,
             "collector_name": run.collector_name,
             "status": run.status,
             "retry_count": run.retry_count,

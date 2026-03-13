@@ -202,6 +202,7 @@ def render_dashboard() -> str:
           <thead>
             <tr>
               <th>Bucket Time</th>
+              <th>应用</th>
               <th>Cluster</th>
               <th>Metric</th>
               <th>Value</th>
@@ -212,7 +213,7 @@ def render_dashboard() -> str:
           </thead>
           <tbody id="metrics-table-body">
             <tr>
-              <td class="empty" colspan="7">Loading...</td>
+              <td class="empty" colspan="8">Loading...</td>
             </tr>
           </tbody>
         </table>
@@ -261,13 +262,14 @@ def render_dashboard() -> str:
 
       function renderRows(rows) {
         if (!rows.length) {
-          tableBody.innerHTML = '<tr><td class="empty" colspan="7">No data</td></tr>';
+          tableBody.innerHTML = '<tr><td class="empty" colspan="8">No data</td></tr>';
           return;
         }
 
         tableBody.innerHTML = rows.map((row) => `
           <tr>
             <td>${escapeHtml(formatCell(formatTime(row.bucket_time)))}</td>
+            <td>${escapeHtml(formatCell(row.application_name))}</td>
             <td>${escapeHtml(formatCell(row.cluster_name))}</td>
             <td>${escapeHtml(formatCell(row.metric_name))}</td>
             <td>${escapeHtml(formatCell(row.metric_value))}</td>
@@ -314,7 +316,7 @@ def render_dashboard() -> str:
           statusNode.textContent =
             `Showing ${rangeText} of latest ${payload.total_rows} rows at ${refreshedAt}`;
         } catch (error) {
-          tableBody.innerHTML = '<tr><td class="empty" colspan="7">Failed to load data</td></tr>';
+          tableBody.innerHTML = '<tr><td class="empty" colspan="8">Failed to load data</td></tr>';
           pageIndicator.textContent = "Page 1 / 0";
           statusNode.textContent = `Refresh failed: ${error.message}`;
         } finally {

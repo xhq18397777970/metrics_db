@@ -29,6 +29,7 @@ class FakeMetricsTableService:
             "rows": [
                 {
                     "bucket_time": datetime(2026, 3, 12, 5, 40, tzinfo=timezone.utc),
+                    "application_name": "应用A",
                     "cluster_name": "cluster-a",
                     "metric_name": "cpu_avg",
                     "metric_value": 42.0,
@@ -79,6 +80,7 @@ def test_dashboard_page_renders_refresh_button() -> None:
     assert "展示 metric_points 中最新的 5000 条数据" in html
     assert 'id="refresh-button"' in html
     assert ">刷新<" in html
+    assert ">应用<" in html
     assert 'id="prev-button"' in html
     assert 'id="next-button"' in html
     assert ">上一页<" in html
@@ -108,6 +110,7 @@ def test_metrics_recent_api_returns_serialized_rows() -> None:
         "rows": [
             {
                 "bucket_time": "2026-03-12T05:40:00+00:00",
+                "application_name": "应用A",
                 "cluster_name": "cluster-a",
                 "metric_name": "cpu_avg",
                 "metric_value": 42.0,

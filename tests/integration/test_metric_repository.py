@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import pytest
 
-from cluster_metrics_platform.domain.models import CollectionRun, MetricPoint
+from cluster_metrics_platform.domain.models import ClusterConfig, CollectionRun, MetricPoint
 from cluster_metrics_platform.storage.timescale_repo import TimescaleMetricsRepository
 
 
@@ -22,6 +22,7 @@ def _build_point(*, metric_value: float, labels: dict[str, str]) -> MetricPoint:
         metric_value=metric_value,
         labels=labels,
         source_tool="http_code",
+        application_name="应用A",
     )
 
 
@@ -38,7 +39,13 @@ def test_upsert_points_is_idempotent_for_equivalent_labels(timescale_connection)
     with timescale_connection.cursor() as cursor:
         cursor.execute(
             """
-            SELECT cluster_name, metric_name, metric_value, labels, labels_fingerprint
+            SELECT
+                cluster_name,
+                application_name,
+                metric_name,
+                metric_value,
+                labels,
+                labels_fingerprint
             FROM metric_points
             """
         )
@@ -46,6 +53,7 @@ def test_upsert_points_is_idempotent_for_equivalent_labels(timescale_connection)
 
     assert len(rows) == 1
     assert rows[0]["cluster_name"] == "lf-lan-ha1"
+    assert rows[0]["application_name"] == "应用A"
     assert rows[0]["metric_name"] == "http_code_count"
     assert rows[0]["metric_value"] == pytest.approx(18.5)
     assert rows[0]["labels"] == {"class": "2xx", "service": "edge"}
@@ -66,6 +74,7 @@ def test_save_run_records_persists_collection_metadata(timescale_connection) -> 
         finished_at=datetime(2026, 3, 12, 10, 5, tzinfo=timezone.utc),
         error_code="timeout",
         error_message="collector execution timed out",
+        application_name="应用A",
     )
 
     assert repository.save_run_records([run]) == 1
@@ -76,6 +85,7 @@ def test_save_run_records_persists_collection_metadata(timescale_connection) -> 
             SELECT
                 run_id,
                 cluster_name,
+                application_name,
                 collector_name,
                 status,
                 retry_count,
@@ -90,6 +100,7 @@ def test_save_run_records_persists_collection_metadata(timescale_connection) -> 
 
     assert stored["run_id"] == run.run_id
     assert stored["cluster_name"] == "lf-lan-ha1"
+    assert stored["application_name"] == "应用A"
     assert stored["collector_name"] == "cpu"
     assert stored["status"] == "failed"
     assert stored["retry_count"] == 2
@@ -108,6 +119,7 @@ def test_list_recent_points_returns_latest_rows_first(timescale_connection) -> N
         metric_name="cpu_avg",
         metric_value=11.0,
         source_tool="cpu",
+        application_name="应用A",
     )
     newer = MetricPoint(
         cluster_name="cluster-b",
@@ -117,6 +129,7 @@ def test_list_recent_points_returns_latest_rows_first(timescale_connection) -> N
         metric_name="qps_avg",
         metric_value=22.0,
         source_tool="qps",
+        application_name="应用B",
     )
 
     repository.upsert_points([older, newer])
@@ -124,6 +137,7 @@ def test_list_recent_points_returns_latest_rows_first(timescale_connection) -> N
     rows = repository.list_recent_points(page=1, page_size=2, visible_limit=5000)
 
     assert [row["cluster_name"] for row in rows] == ["cluster-b", "cluster-a"]
+    assert [row["application_name"] for row in rows] == ["应用B", "应用A"]
     assert [row["metric_name"] for row in rows] == ["qps_avg", "cpu_avg"]
 
 
@@ -139,6 +153,7 @@ def test_recent_points_pagination_uses_offset_within_visible_window(timescale_co
             metric_name="cpu_avg",
             metric_value=float(index),
             source_tool="cpu",
+            application_name=f"应用{index}",
         )
         for index in range(3)
     ]
@@ -151,3 +166,57 @@ def test_recent_points_pagination_uses_offset_within_visible_window(timescale_co
     assert total_rows == 3
     assert len(rows) == 1
     assert rows[0]["cluster_name"] == "cluster-1"
+    assert rows[0]["application_name"] == "应用1"
+
+
+@pytest.mark.integration
+def test_sync_missing_application_names_backfills_existing_rows(timescale_connection) -> None:
+    repository = TimescaleMetricsRepository(timescale_connection)
+    point = MetricPoint(
+        cluster_name="cluster-a",
+        bucket_time=datetime(2026, 3, 12, 10, 0, tzinfo=timezone.utc),
+        window_start=datetime(2026, 3, 12, 10, 0, tzinfo=timezone.utc),
+        window_end=datetime(2026, 3, 12, 10, 5, tzinfo=timezone.utc),
+        metric_name="cpu_avg",
+        metric_value=10.0,
+        source_tool="cpu",
+    )
+    run = CollectionRun(
+        run_id=uuid4(),
+        cluster_name="cluster-a",
+        collector_name="cpu",
+        bucket_time=datetime(2026, 3, 12, 10, 0, tzinfo=timezone.utc),
+        status="success",
+        retry_count=0,
+        started_at=datetime(2026, 3, 12, 10, 0, tzinfo=timezone.utc),
+        finished_at=datetime(2026, 3, 12, 10, 5, tzinfo=timezone.utc),
+    )
+
+    repository.upsert_points([point])
+    repository.save_run_records([run])
+
+    updated_rows = repository.sync_missing_application_names(
+        [ClusterConfig(group_name="group-a", cluster_name="cluster-a", application_name="应用A")]
+    )
+
+    with timescale_connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT application_name
+            FROM metric_points
+            WHERE cluster_name = 'cluster-a'
+            """
+        )
+        point_row = cursor.fetchone()
+        cursor.execute(
+            """
+            SELECT application_name
+            FROM collection_runs
+            WHERE cluster_name = 'cluster-a'
+            """
+        )
+        run_row = cursor.fetchone()
+
+    assert updated_rows == 2
+    assert point_row["application_name"] == "应用A"
+    assert run_row["application_name"] == "应用A"

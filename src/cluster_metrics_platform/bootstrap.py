@@ -90,8 +90,9 @@ def create_application(
         task_timeout_seconds=resolved_settings.dispatcher_timeout_seconds,
     )
     repository = TimescaleMetricsRepository(resolved_connection)
-    collection_status_service = CollectionStatusService(resolved_connection)
     cluster_loader = partial(load_clusters, resolved_settings.cluster_config_path)
+    repository.sync_missing_application_names(cluster_loader())
+    collection_status_service = CollectionStatusService(resolved_connection)
     collection_service = CollectionService(
         cluster_loader,
         dispatcher,

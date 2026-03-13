@@ -18,9 +18,16 @@ def load_cluster_groups(path: str | Path) -> dict[str, list[ClusterConfig]]:
         clusters = group_data.get("clusters")
         if not isinstance(clusters, list):
             raise ValueError(f"group {group_name} is missing a valid clusters list")
+        application_name = group_data.get("application_name", group_name)
+        if not isinstance(application_name, str):
+            raise ValueError(f"group {group_name} has an invalid application_name")
 
         grouped_clusters[group_name] = [
-            ClusterConfig(group_name=group_name, cluster_name=cluster_name)
+            ClusterConfig(
+                group_name=group_name,
+                cluster_name=cluster_name,
+                application_name=application_name,
+            )
             for cluster_name in clusters
             if isinstance(cluster_name, str)
         ]
@@ -32,4 +39,3 @@ def load_clusters(path: str | Path) -> list[ClusterConfig]:
     """Load a flattened list of clusters while preserving group order."""
     grouped_clusters = load_cluster_groups(path)
     return [cluster for clusters in grouped_clusters.values() for cluster in clusters]
-

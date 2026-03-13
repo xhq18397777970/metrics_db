@@ -64,6 +64,20 @@ def test_init_migration_creates_tables_and_hypertable(timescale_connection) -> N
         )
         window_status_indexes = {row["indexname"] for row in cursor.fetchall()}
 
+        cursor.execute(
+            """
+            SELECT table_name, column_name
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name IN ('metric_points', 'collection_runs')
+              AND column_name = 'application_name'
+            """
+        )
+        application_columns = {
+            (row["table_name"], row["column_name"])
+            for row in cursor.fetchall()
+        }
+
     assert {
         "idx_collection_runs_bucket_status",
         "idx_collection_runs_cluster_bucket",
@@ -71,3 +85,7 @@ def test_init_migration_creates_tables_and_hypertable(timescale_connection) -> N
     }.issubset(collection_run_indexes)
     assert "idx_metric_points_cluster_metric_bucket" in metric_indexes
     assert "idx_collection_window_status_bucket" in window_status_indexes
+    assert application_columns == {
+        ("metric_points", "application_name"),
+        ("collection_runs", "application_name"),
+    }

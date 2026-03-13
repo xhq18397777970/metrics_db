@@ -39,9 +39,10 @@ def test_cpu_collector_empty_data(monkeypatch, sample_window) -> None:
 
     result = CpuCollector().collect("lf-lan-ha1", sample_window)
 
-    assert result.status == "failed"
-    assert result.error is not None
-    assert result.error.message == "当前查询条件下暂无数据"
+    assert result.status == "success"
+    assert result.error is None
+    assert [point.metric_value for point in result.points] == [0.0, 0.0, 0.0]
+    assert [point.metric_name for point in result.points] == ["cpu_avg", "net_bps", "net_bps"]
 
 
 def test_cpu_collector_malformed_response(monkeypatch, sample_window) -> None:

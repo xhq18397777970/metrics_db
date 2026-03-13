@@ -28,9 +28,11 @@ def test_http_code_collector_empty_data(monkeypatch, sample_window) -> None:
 
     result = HttpCodeCollector().collect("lf-lan-ha1", sample_window)
 
-    assert result.status == "failed"
-    assert result.error is not None
-    assert result.error.message == "当前查询条件下暂无数据"
+    assert result.status == "success"
+    assert result.error is None
+    assert len(result.points) == 3
+    assert {point.metric_value for point in result.points} == {0.0}
+    assert {point.labels["class"] for point in result.points} == {"2xx", "4xx", "5xx"}
 
 
 def test_http_code_collector_malformed_response(monkeypatch, sample_window) -> None:
